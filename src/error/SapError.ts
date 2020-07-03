@@ -1,5 +1,5 @@
-export default interface SapError {
-  message: string;
-  start: number;
-  end: number;
+export default abstract class SapError {
+  abstract get message(): string;
+  abstract get start(): number;
+  abstract get end(): number;
 }
