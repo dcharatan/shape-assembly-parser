@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "jest --verbose"
+    "test": "jest --verbose",
+    "test:watch": "jest --watch"
   },
   "author": "David Charatan",
   "license": "ISC",
