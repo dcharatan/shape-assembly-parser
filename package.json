@@ -2,7 +2,8 @@
   "name": "@dcharatan/shape-assembly-parser",
   "version": "1.0.0",
   "description": "A parser for ShapeAssembly.",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
