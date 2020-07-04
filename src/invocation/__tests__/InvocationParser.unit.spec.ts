@@ -86,12 +86,6 @@ describe('InvocationParser Unit Tests', () => {
       expect(parser.parseInvocation(statement)).toBeInstanceOf(SapError);
     });
 
-    test('invalid function name gives error', () => {
-      const tokens = ['bug', '=', 'beetle', '(', 'one', ',', '2two', ',', 'three', ')'].map(makeToken);
-      const statement = makeStatement(tokens, 1);
-      expect(parser.parseInvocation(statement)).toBeInstanceOf(SapError);
-    });
-
     test('extra token gives error', () => {
       const tokens = ['bug', '=', 'beetle', '(', 'one', ',', 'two', ',', 'three', ')', 'whoops'].map(makeToken);
       const statement = makeStatement(tokens, 1);
@@ -108,6 +102,45 @@ describe('InvocationParser Unit Tests', () => {
       const tokens = ['beetle', '(', ','].map(makeToken);
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toBeInstanceOf(SapError);
+    });
+
+    test('correct parsing for invocation with arguments which are numbers', () => {
+      const tokens = ['alligator', '(', '1', ',', '2', ')'].map(makeToken);
+      const statement = makeStatement(tokens, 1);
+      expect(parser.parseInvocation(statement)).toEqual({
+        definitionToken: tokens[0],
+        argumentTokens: [tokens[2], tokens[4]],
+        assignmentToken: undefined,
+      });
+    });
+
+    test('no spurious assignment error for attach statement', () => {
+      const tokens = [
+        'attach',
+        '(',
+        'cub1',
+        ',',
+        'cub2',
+        ',',
+        '1',
+        ',',
+        '1',
+        ',',
+        '1',
+        ',',
+        '1',
+        ',',
+        '1',
+        ',',
+        '1',
+        ')',
+      ].map(makeToken);
+      const statement = makeStatement(tokens, 1);
+      expect(parser.parseInvocation(statement)).toEqual({
+        definitionToken: tokens[0],
+        argumentTokens: tokens.filter((_, i) => i % 2 === 0 && i > 0),
+        assignmentToken: undefined,
+      });
     });
   });
 });

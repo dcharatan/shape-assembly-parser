@@ -6,13 +6,15 @@ import NameValidator from '../name/NameValidator';
 import NameError from '../error/NameError';
 import Invocation from './Invocation';
 import IndentationLevelError from '../error/IndentationLevelError';
+import DEF_KEYWORD from '../definition/DefKeyword';
+import separators from '../token/separators';
 
 type Expectation =
   | 'FUNCTION_NAME'
   | 'OPENING_PARENTHESIS'
-  | 'ARGUMENT_NAME_OR_CLOSING_PARENTHESIS'
+  | 'ARGUMENT_OR_CLOSING_PARENTHESIS'
   | 'COMMA_OR_CLOSING_PARENTHESIS'
-  | 'ARGUMENT_NAME'
+  | 'ARGUMENT'
   | 'END';
 
 export default class InvocationParser {
@@ -22,6 +24,10 @@ export default class InvocationParser {
   private argumentTokens: Token[] = [];
 
   public parseInvocation(statement: Statement): Invocation | SapError {
+    this.assignmentToken = undefined;
+    this.definitionToken = undefined;
+    this.argumentTokens = [];
+
     // Validate indentation level.
     if (statement.indentationLevel !== 1) {
       return new IndentationLevelError(statement.tokens[0], 0, statement.indentationLevel);
@@ -67,28 +73,31 @@ export default class InvocationParser {
 
       case 'OPENING_PARENTHESIS':
         return token.text === '('
-          ? 'ARGUMENT_NAME_OR_CLOSING_PARENTHESIS'
+          ? 'ARGUMENT_OR_CLOSING_PARENTHESIS'
           : new UnexpectedTokenError(token, 'opening parenthesis');
 
-      case 'ARGUMENT_NAME_OR_CLOSING_PARENTHESIS':
-        if (this.nameValidator.isValidName(token.text)) {
-          this.argumentTokens.push(token);
-          return 'COMMA_OR_CLOSING_PARENTHESIS';
+      case 'ARGUMENT_OR_CLOSING_PARENTHESIS':
+        if (token.text === ')') {
+          return 'END';
         }
-        return token.text === ')' ? 'END' : new UnexpectedTokenError(token, 'argument name or closing parenthesis');
+        if (token.text === DEF_KEYWORD || separators.has(token.text)) {
+          return new UnexpectedTokenError(token, 'argument or closing parenthesis');
+        }
+        this.argumentTokens.push(token);
+        return 'COMMA_OR_CLOSING_PARENTHESIS';
 
       case 'COMMA_OR_CLOSING_PARENTHESIS':
         if (token.text === ',') {
-          return 'ARGUMENT_NAME';
+          return 'ARGUMENT';
         }
         return token.text === ')' ? 'END' : new UnexpectedTokenError(token, 'comma or closing parenthesis');
 
-      case 'ARGUMENT_NAME':
-        if (this.nameValidator.isValidName(token.text)) {
-          this.argumentTokens.push(token);
-          return 'COMMA_OR_CLOSING_PARENTHESIS';
+      case 'ARGUMENT':
+        if (token.text === DEF_KEYWORD || separators.has(token.text)) {
+          return new UnexpectedTokenError(token, 'argument');
         }
-        return new NameError(token);
+        this.argumentTokens.push(token);
+        return 'COMMA_OR_CLOSING_PARENTHESIS';
 
       case 'END':
         return new UnexpectedTokenError(token, 'newline');

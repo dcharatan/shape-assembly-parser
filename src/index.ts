@@ -14,7 +14,7 @@ import PositiveInteger from './type/PositiveInteger';
 import PositiveFloat from './type/PositiveFloat';
 import SapBoolean from './type/SapBoolean';
 
-interface ShapeAssemblyProgram {
+export interface ShapeAssemblyProgram {
   definitions: Definition[];
   errors: SapError[];
 }
@@ -57,7 +57,7 @@ export default class ShapeAssemblyParser {
     const cuboid = this.makeDefinition(
       'Cuboid',
       [new PositiveFloat(), new PositiveFloat(), new PositiveFloat(), new SapBoolean()],
-      undefined,
+      new BlockType(),
     );
     return [attach, squeeze, reflect, translate, cuboid];
   }
