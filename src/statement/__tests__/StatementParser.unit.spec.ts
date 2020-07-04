@@ -15,10 +15,10 @@ describe('StatementParser Unit Tests', () => {
 
   describe('parseStatements', () => {
     test('Single line without indentation produces one statement and no errors.', () => {
-      const tokens = ['def', 'functionName', '(', ')'].map(makeToken);
+      const tokens = ['def', ' ', 'functionName', '(', ')'].map(makeToken);
       const result = statementParser.parseStatements(tokens);
       expect(result).toEqual({
-        statements: [new Statement(tokens, 0)],
+        statements: [new Statement([tokens[0], ...tokens.slice(2, 5)], 0)],
         errors: [],
       });
     });

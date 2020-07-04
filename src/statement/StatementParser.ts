@@ -12,19 +12,25 @@ export default class StatementParser {
     const statements: Statement[] = [];
     const errors: SapError[] = [];
     lines.forEach((line) => {
+      let indentation = 0;
       if (line[0].isWhitespace) {
         // Validate indentation.
         if (line[0].text.includes('\t')) {
           errors.push(new TabError(line[0]));
+          return;
         } else if (line[0].text.length % StatementParser.SPACES_PER_INDENTATION) {
           errors.push(new IndentationError(line[0], StatementParser.SPACES_PER_INDENTATION, line[0].text.length));
+          return;
         } else {
-          statements.push(new Statement(line.slice(1), line[0].text.length / StatementParser.SPACES_PER_INDENTATION));
+          indentation = line[0].text.length / StatementParser.SPACES_PER_INDENTATION;
         }
-      } else {
-        // There's no indentation.
-        statements.push(new Statement(line, 0));
       }
+      statements.push(
+        new Statement(
+          line.filter((token) => !token.isWhitespace),
+          indentation,
+        ),
+      );
     });
     return { statements, errors };
   }
