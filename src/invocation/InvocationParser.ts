@@ -30,7 +30,7 @@ export default class InvocationParser {
 
     // Validate indentation level.
     if (statement.indentationLevel !== 1) {
-      return new IndentationLevelError(statement.tokens[0], 0, statement.indentationLevel);
+      return new IndentationLevelError(statement.tokens[0], 1, statement.indentationLevel);
     }
 
     // Detect assignment.
