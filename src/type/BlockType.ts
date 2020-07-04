@@ -6,7 +6,7 @@ import Invocation from '../invocation/Invocation';
 
 export default class BlockType implements SapType<Invocation> {
   parse(token: Token, blocksInScope: Invocation[]): Invocation | SapError {
-    return blocksInScope.find((block) => block.name === token.text) || new SapTypeError(token, this);
+    return blocksInScope.find((block) => block.assignmentToken?.text === token.text) || new SapTypeError(token, this);
   }
 
   public get name(): string {
