@@ -16,24 +16,24 @@ describe('BlockType Unit Tests', () => {
   describe('parse', () => {
     test('number gives TypeError', () => {
       const token = makeToken('5');
-      expect(blockType.parse(token, [])).toEqual(new SapTypeError(token, blockType));
+      expect(blockType.parse([token], [])).toEqual(new SapTypeError(token, blockType));
     });
 
     test('word gives TypeError', () => {
       const token = makeToken('corn');
-      expect(blockType.parse(token, [])).toEqual(new SapTypeError(token, blockType));
+      expect(blockType.parse([token], [])).toEqual(new SapTypeError(token, blockType));
     });
 
     test('bad capitalization gives error (x)', () => {
       const token = makeToken('x');
-      expect(blockType.parse(token, [])).toEqual(new SapTypeError(token, blockType));
+      expect(blockType.parse([token], [])).toEqual(new SapTypeError(token, blockType));
     });
 
     test('existing block parsed correctly', () => {
       const blockToken = makeToken('block_name');
       const block = makeInvocation(blockToken);
       const blocks = [makeInvocation(undefined), block, makeInvocation(makeToken('other_block'))];
-      expect(blockType.parse(blockToken, blocks)).toEqual(block);
+      expect(blockType.parse([blockToken], blocks)).toEqual(block);
     });
 
     test('missing block gives TypeError', () => {
@@ -43,7 +43,7 @@ describe('BlockType Unit Tests', () => {
         makeInvocation(undefined),
       ];
       const token = makeToken('nonexistent block');
-      expect(blockType.parse(token, blocks)).toEqual(new SapTypeError(token, blockType));
+      expect(blockType.parse([token], blocks)).toEqual(new SapTypeError(token, blockType));
     });
   });
 

@@ -29,7 +29,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [tokens[2], tokens[4]],
+        argumentTokens: [[tokens[2]], [tokens[4]]],
         assignmentToken: undefined,
       });
     });
@@ -39,7 +39,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[2],
-        argumentTokens: [tokens[4]],
+        argumentTokens: [[tokens[4]]],
         assignmentToken: tokens[0],
       });
     });
@@ -109,7 +109,27 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [tokens[2], tokens[4]],
+        argumentTokens: [[tokens[2]], [tokens[4]]],
+        assignmentToken: undefined,
+      });
+    });
+
+    test('multi-token single argument works', () => {
+      const tokens = ['beetle', '(', '5', '*', '5', ')'].map(makeToken);
+      const statement = makeStatement(tokens, 1);
+      expect(parser.parseInvocation(statement)).toEqual({
+        definitionToken: tokens[0],
+        argumentTokens: [tokens.slice(2, 5)],
+        assignmentToken: undefined,
+      });
+    });
+
+    test('multiple multi-token arguments work', () => {
+      const tokens = ['beetle', '(', '5', '*', '5', ',', '3', ',', '2', '+', '3', ')'].map(makeToken);
+      const statement = makeStatement(tokens, 1);
+      expect(parser.parseInvocation(statement)).toEqual({
+        definitionToken: tokens[0],
+        argumentTokens: [tokens.slice(2, 5), [tokens[6]], tokens.slice(8, 11)],
         assignmentToken: undefined,
       });
     });
@@ -138,7 +158,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: tokens.filter((_, i) => i % 2 === 0 && i > 0),
+        argumentTokens: tokens.filter((_, i) => i % 2 === 0 && i > 0).map((token) => [token]),
         assignmentToken: undefined,
       });
     });

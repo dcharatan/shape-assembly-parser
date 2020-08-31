@@ -1,106 +1,138 @@
-import SapError from '../error/SapError';
-import Statement from '../statement/Statement';
 import Token from '../token/Token';
-import UnexpectedTokenError from '../error/UnexpectedTokenError';
-import NameValidator from '../name/NameValidator';
-import NameError from '../error/NameError';
-import Invocation from './Invocation';
+import Statement from '../statement/Statement';
+import SapError from '../error/SapError';
 import IndentationLevelError from '../error/IndentationLevelError';
-import DEF_KEYWORD from '../definition/DefKeyword';
-import separators from '../token/separators';
+import NameError from '../error/NameError';
+import NameValidator from '../name/NameValidator';
+import Invocation from './Invocation';
+import UnexpectedTokenError from '../error/UnexpectedTokenError';
+import IncompleteInvocationError from '../error/IncompleteInvocationError';
 
-type Expectation =
-  | 'FUNCTION_NAME'
-  | 'OPENING_PARENTHESIS'
-  | 'ARGUMENT_OR_CLOSING_PARENTHESIS'
-  | 'COMMA_OR_CLOSING_PARENTHESIS'
-  | 'ARGUMENT'
-  | 'END';
+interface AssignmentStructure {
+  assignmentToken: Token | undefined,
+  invocationTokens: Token[],
+}
+
+interface DefinitionStructure {
+  definitionToken: Token,
+  argumentTokens: Token[],
+}
 
 export default class InvocationParser {
-  private nameValidator: NameValidator = new NameValidator();
-  private assignmentToken?: Token = undefined;
-  private definitionToken?: Token = undefined;
-  private argumentTokens: Token[] = [];
+  private nameValidator = new NameValidator();
 
   public parseInvocation(statement: Statement): Invocation | SapError {
-    this.assignmentToken = undefined;
-    this.definitionToken = undefined;
-    this.argumentTokens = [];
-
     // Validate indentation level.
     if (statement.indentationLevel !== 1) {
       return new IndentationLevelError(statement.tokens[0], 1, statement.indentationLevel);
     }
 
-    // Detect assignment.
-    let invocationTokens = statement.tokens;
-    if (statement.tokens.length > 2 && statement.tokens[1].text === '=') {
-      invocationTokens = statement.tokens.slice(2);
-      if (!this.nameValidator.isValidName(statement.tokens[0].text)) {
-        return new NameError(statement.tokens[0]);
-      }
-      this.assignmentToken = statement.tokens[0];
+    // Parse assignment if it exists and extract the remaining invocation tokens.
+    const parsedAssignment = this.parseAssignment(statement.tokens);
+    if (parsedAssignment instanceof SapError) {
+      return parsedAssignment;
     }
 
-    // Run state machine.
-    this.definitionToken = undefined;
-    this.argumentTokens = [];
-    let expectation: Expectation = 'FUNCTION_NAME';
-    for (const token of invocationTokens) {
-      const result = this.reducer(token, expectation);
-      if (result instanceof SapError) {
-        return result;
-      }
-      expectation = result;
+    // Make sure tokens remain.
+    if (parsedAssignment.invocationTokens.length === 0) {
+      return new IncompleteInvocationError(statement.tokens[1], 'function name');
     }
 
-    // Validate final state.
-    if (expectation !== 'END' || !this.definitionToken) {
-      return new UnexpectedTokenError(statement.tokens[statement.tokens.length - 1], 'complete function declaration');
+    // Parse the definition name and extract any argument tokens.
+    const parsedDefinition = this.parseDefinition(parsedAssignment.invocationTokens);
+    if (parsedDefinition instanceof SapError) {
+      return parsedDefinition;
     }
-    return new Invocation(this.definitionToken, this.argumentTokens, this.assignmentToken);
+
+    // Parse the argument tokens.
+    const argumentTokens = this.parseArguments(parsedDefinition.argumentTokens);
+    if (argumentTokens instanceof SapError) {
+      return argumentTokens;
+    }
+
+    return new Invocation(parsedDefinition.definitionToken, argumentTokens, parsedAssignment.assignmentToken);
   }
 
-  private reducer(token: Token, expectation: Expectation): Expectation | SapError {
-    switch (expectation) {
-      case 'FUNCTION_NAME':
-        if (!this.nameValidator.isValidName(token.text)) {
-          return new NameError(token);
-        }
-        this.definitionToken = token;
-        return 'OPENING_PARENTHESIS';
+  private parseAssignment(tokens: Token[]): AssignmentStructure | SapError {
+    if (tokens.length >= 2 && tokens[1].text === '=') {
+      if (!this.nameValidator.isValidName(tokens[0].text)) {
+        return new NameError(tokens[0]);
+      }
+      return {
+        assignmentToken: tokens[0],
+        invocationTokens: tokens.slice(2),
+      }
+    }
+    return {
+      assignmentToken: undefined,
+      invocationTokens: tokens,
+    }
+  }
 
-      case 'OPENING_PARENTHESIS':
-        return token.text === '('
-          ? 'ARGUMENT_OR_CLOSING_PARENTHESIS'
-          : new UnexpectedTokenError(token, 'opening parenthesis');
+  private parseDefinition(tokens: Token[]): DefinitionStructure | SapError {
+    // The first token is the function name.
+    const definitionToken = tokens[0];
+    if (!this.nameValidator.isValidName(definitionToken.text)) {
+      return new NameError(definitionToken);
+    }
 
-      case 'ARGUMENT_OR_CLOSING_PARENTHESIS':
-        if (token.text === ')') {
-          return 'END';
-        }
-        if (token.text === DEF_KEYWORD || separators.has(token.text)) {
-          return new UnexpectedTokenError(token, 'argument or closing parenthesis');
-        }
-        this.argumentTokens.push(token);
-        return 'COMMA_OR_CLOSING_PARENTHESIS';
+    // The second token is an opening parenthesis.
+    if (tokens.length < 2) {
+      return new IncompleteInvocationError(definitionToken, 'opening parenthesis');
+    }
+    const openingParenthesisToken = tokens[1];
+    if (openingParenthesisToken.text !== '(') {
+      return new UnexpectedTokenError(openingParenthesisToken, 'opening parenthesis');
+    }
 
-      case 'COMMA_OR_CLOSING_PARENTHESIS':
-        if (token.text === ',') {
-          return 'ARGUMENT';
-        }
-        return token.text === ')' ? 'END' : new UnexpectedTokenError(token, 'comma or closing parenthesis');
+    // The final token is a closing parenthesis.
+    if (tokens.length < 3) {
+      return new IncompleteInvocationError(definitionToken, 'closing parenthesis');
+    }
+    const closingParenthesisToken = tokens[tokens.length - 1];
+    if (closingParenthesisToken.text !== ')') {
+      return new UnexpectedTokenError(openingParenthesisToken, 'closing parenthesis');
+    }
 
-      case 'ARGUMENT':
-        if (token.text === DEF_KEYWORD || separators.has(token.text)) {
+    // To get the argument tokens, remove:
+    // 1. Two tokens from the beginning (function name and opening parenthesis)
+    // 2. One token from the end (closing parenthesis)
+    return {
+      definitionToken,
+      argumentTokens: tokens.slice(2, tokens.length - 1),
+    };
+  }
+
+  private parseArguments(tokens: Token[]): Token[][] | SapError {
+    if (!tokens.length) {
+      return [];
+    }
+
+    // The first token should not be a comma.
+    if (tokens[0].text === ',') {
+      return new UnexpectedTokenError(tokens[0], 'argument');
+    }
+
+    // Split the tokens by commas.
+    const argumentGroups: Token[][] = [];
+    let argumentGroup: Token[] = [];
+    for (const token of tokens) {
+      if (token.text === ',') {
+        if (!argumentGroup.length) {
           return new UnexpectedTokenError(token, 'argument');
         }
-        this.argumentTokens.push(token);
-        return 'COMMA_OR_CLOSING_PARENTHESIS';
-
-      case 'END':
-        return new UnexpectedTokenError(token, 'newline');
+        argumentGroups.push(argumentGroup);
+        argumentGroup = [];
+      } else {
+        argumentGroup.push(token);
+      }
     }
+
+    // Add the last argument group.
+    if (!argumentGroup.length) {
+      return new IncompleteInvocationError(tokens[tokens.length - 1], 'argument');
+    }
+    argumentGroups.push(argumentGroup);
+    return argumentGroups;
   }
 }

@@ -22,7 +22,7 @@ describe('InvocationValidator Unit Tests', () => {
 
   describe('validateInvocation', () => {
     test('correct parsing for invocation with single argument', () => {
-      const invocation = new Invocation(makeToken('eat_celery'), [makeToken('5')], undefined);
+      const invocation = new Invocation(makeToken('eat_celery'), [[makeToken('5')]], undefined);
       const definition = new Definition(
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
@@ -54,12 +54,12 @@ describe('InvocationValidator Unit Tests', () => {
     });
 
     test('invoking undefined function gives error', () => {
-      const invocation = new Invocation(makeToken('eat_celery'), [makeToken('5')], undefined);
+      const invocation = new Invocation(makeToken('eat_celery'), [[makeToken('5')]], undefined);
       expect(validator.validateInvocation(invocation, [], [])).toBeInstanceOf(InvocationError);
     });
 
     test('assigning void return type gives error', () => {
-      const invocation = new Invocation(makeToken('eat_celery'), [makeToken('5')], makeToken('result'));
+      const invocation = new Invocation(makeToken('eat_celery'), [[makeToken('5')]], makeToken('result'));
       const definition = new Definition(
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
@@ -70,8 +70,8 @@ describe('InvocationValidator Unit Tests', () => {
     });
 
     test('duplicate assignment gives error', () => {
-      const previousInvocation = new Invocation(makeToken('eat_celery'), [makeToken('5')], makeToken('result'));
-      const invocation = new Invocation(makeToken('eat_celery'), [makeToken('5')], makeToken('result'));
+      const previousInvocation = new Invocation(makeToken('eat_celery'), [[makeToken('5')]], makeToken('result'));
+      const invocation = new Invocation(makeToken('eat_celery'), [[makeToken('5')]], makeToken('result'));
       const definition = new Definition(
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
@@ -84,7 +84,7 @@ describe('InvocationValidator Unit Tests', () => {
     });
 
     test('argument count mismatch gives error', () => {
-      const invocation = new Invocation(makeToken('eat_celery'), [makeToken('5'), makeToken('6')], undefined);
+      const invocation = new Invocation(makeToken('eat_celery'), [[makeToken('5')], [makeToken('6')]], undefined);
       const definition = new Definition(
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
@@ -95,7 +95,7 @@ describe('InvocationValidator Unit Tests', () => {
     });
 
     test('argument type mismatch gives error', () => {
-      const invocation = new Invocation(makeToken('eat_celery'), [makeToken('not_an_integer')], undefined);
+      const invocation = new Invocation(makeToken('eat_celery'), [[makeToken('not_an_integer')]], undefined);
       const definition = new Definition(
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],

@@ -42,9 +42,9 @@ export default class InvocationValidator {
 
     // Validate the arguments.
     for (let i = 0; i < invocation.argumentTokens.length; i++) {
-      const argumentToken = invocation.argumentTokens[i];
+      const argumentTokens = invocation.argumentTokens[i];
       const argumentType = definition.argumentTypes[i];
-      const parsed = argumentType.parse(argumentToken, previousInvocations);
+      const parsed = argumentType.parse(argumentTokens, previousInvocations);
       if (parsed instanceof SapError) {
         return parsed;
       }

@@ -14,30 +14,30 @@ describe('PositiveFloat Unit Tests', () => {
 
   describe('parse', () => {
     test('correctly parses 5', () => {
-      expect(positiveFloat.parse(makeToken('5'))).toBe(5);
+      expect(positiveFloat.parse([makeToken('5')])).toBe(5);
     });
 
     test('too small number gives range error', () => {
       const token = makeToken('-4.3');
-      expect(positiveFloat.parse(token)).toEqual(new SapRangeError(token, 0, Infinity));
+      expect(positiveFloat.parse([token])).toEqual(new SapRangeError(token, 0, Infinity));
     });
 
     test('zero gives range error', () => {
       const token = makeToken('0');
-      expect(positiveFloat.parse(token)).toEqual(new SapRangeError(token, 0, Infinity));
+      expect(positiveFloat.parse([token])).toEqual(new SapRangeError(token, 0, Infinity));
     });
 
     test('one parsed correctly', () => {
-      expect(positiveFloat.parse(makeToken('1'))).toBe(1);
+      expect(positiveFloat.parse([makeToken('1')])).toBe(1);
     });
 
     test('0.3 parsed correctly', () => {
-      expect(positiveFloat.parse(makeToken('0.3'))).toBe(0.3);
+      expect(positiveFloat.parse([makeToken('0.3')])).toBe(0.3);
     });
 
     test('non-numerical input gives error', () => {
       const token = makeToken('radish');
-      expect(positiveFloat.parse(token)).toEqual(new SapTypeError(token, positiveFloat));
+      expect(positiveFloat.parse([token])).toEqual(new SapTypeError(token, positiveFloat));
     });
   });
 
