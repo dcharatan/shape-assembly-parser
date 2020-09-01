@@ -24,12 +24,12 @@ export default class ShapeAssemblyParser {
   private statementParser: StatementParser = new StatementParser();
   private definitionParser: DefinitionParser = new DefinitionParser();
 
-  private makeDefinition(name: string, argumentTypes: SapType<unknown>[], returnType?: SapType<unknown>) {
-    return new Definition(new Declaration(new Token(name, 0, 0), []), [], argumentTypes, returnType);
+  private makeStandardDefinition(name: string, argumentTypes: SapType<unknown>[], returnType?: SapType<unknown>) {
+    return new Definition(new Declaration(new Token(name, 0, 0), []), [], argumentTypes, true, returnType);
   }
 
   private makeStandardDefinitions(): Definition[] {
-    const attach = this.makeDefinition(
+    const attach = this.makeStandardDefinition(
       'attach',
       [
         new BlockType(),
@@ -43,18 +43,18 @@ export default class ShapeAssemblyParser {
       ],
       undefined,
     );
-    const squeeze = this.makeDefinition(
+    const squeeze = this.makeStandardDefinition(
       'squeeze',
       [new BlockType(), new BlockType(), new BlockType(), new Side(), new UnitFloat(), new UnitFloat()],
       undefined,
     );
-    const reflect = this.makeDefinition('reflect', [new BlockType(), new Axis()], undefined);
-    const translate = this.makeDefinition(
+    const reflect = this.makeStandardDefinition('reflect', [new BlockType(), new Axis()], undefined);
+    const translate = this.makeStandardDefinition(
       'translate',
       [new BlockType(), new Axis(), new PositiveInteger(), new PositiveFloat()],
       undefined,
     );
-    const cuboid = this.makeDefinition(
+    const cuboid = this.makeStandardDefinition(
       'Cuboid',
       [new PositiveFloat(), new PositiveFloat(), new PositiveFloat(), new SapBoolean()],
       new BlockType(),

@@ -8,7 +8,6 @@ import InvocationParser from '../invocation/InvocationParser';
 import InvocationValidator from '../invocation/InvocationValidator';
 import Invocation from '../invocation/Invocation';
 import Declaration from './Declaration';
-import BlockType from '../type/BlockType';
 import UnknownType from '../type/UnknownType';
 
 export default class DefinitionParser {
@@ -72,6 +71,6 @@ export default class DefinitionParser {
 
   private makeCustomDefinition(declaration: Declaration, invocations: Invocation[]): Definition {
     const types = declaration.parameterTokens.map(() => new UnknownType());
-    return new Definition(declaration, invocations, types, new BlockType());
+    return new Definition(declaration, invocations, types, false, undefined);
   }
 }

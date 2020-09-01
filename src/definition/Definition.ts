@@ -7,6 +7,7 @@ export default class Definition {
     public declaration: Declaration,
     public invocations: Invocation[],
     public argumentTypes: SapType<unknown>[],
+    public readonly isBuiltIn: boolean,
     public returnType?: SapType<unknown>,
   ) {}
 }

@@ -28,6 +28,7 @@ describe('InvocationValidator Unit Tests', () => {
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
         [new PositiveInteger()],
+        false,
         undefined,
       );
       expect(validator.validateInvocation(invocation, [definition], [])).toBeUndefined();
@@ -39,6 +40,7 @@ describe('InvocationValidator Unit Tests', () => {
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
         [],
+        false,
         new BlockType(),
       );
       expect(validator.validateInvocation(invocation, [definition], [])).toBeUndefined();
@@ -46,9 +48,9 @@ describe('InvocationValidator Unit Tests', () => {
 
     test('correct parsing for multiple invocations without arguments', () => {
       const previousInvocation = new Invocation(makeToken('prepare_celery'), [], undefined);
-      const previousDefinition = new Definition(new Declaration(makeToken('prepare_celery'), []), [], [], undefined);
+      const previousDefinition = new Definition(new Declaration(makeToken('prepare_celery'), []), [], [], false, undefined);
       const invocation = new Invocation(makeToken('eat_celery'), [], makeToken('eat_celery_result_2'));
-      const definition = new Definition(new Declaration(makeToken('eat_celery'), []), [], [], new BlockType());
+      const definition = new Definition(new Declaration(makeToken('eat_celery'), []), [], [], false, new BlockType());
       expect(
         validator.validateInvocation(invocation, [previousDefinition, definition], [previousInvocation]),
       ).toBeUndefined();
@@ -65,6 +67,7 @@ describe('InvocationValidator Unit Tests', () => {
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
         [new PositiveInteger()],
+        false,
         undefined,
       );
       expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(UnexpectedAssignmentError);
@@ -77,6 +80,7 @@ describe('InvocationValidator Unit Tests', () => {
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
         [new PositiveInteger()],
+        false,
         new BlockType(),
       );
       expect(validator.validateInvocation(invocation, [definition], [previousInvocation])).toBeInstanceOf(
@@ -90,6 +94,7 @@ describe('InvocationValidator Unit Tests', () => {
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
         [new PositiveInteger()],
+        false,
         undefined,
       );
       expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(ArgumentMismatchError);
@@ -101,6 +106,7 @@ describe('InvocationValidator Unit Tests', () => {
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
         [],
         [new PositiveInteger()],
+        false,
         undefined,
       );
       expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(SapTypeError);
