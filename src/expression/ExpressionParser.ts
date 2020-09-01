@@ -39,18 +39,18 @@ export default class ExpressionParser {
         return new UnexpectedTokenError(operatorToken, 'operator');
       }
 
-      // Get the left operand.
-      const left = operands.pop();
-      if (!left) {
+      // Get the right operand.
+      const right = operands.pop();
+      if (!right) {
         return new UnexpectedTokenError(operatorToken, 'valid expression');
       }
 
       // Get the right operand.
       if (operator.isUnary) {
-        operands.push(new ExpressionNode(operatorToken, [left]));
+        operands.push(new ExpressionNode(operatorToken, [right]));
       } else {
-        const right = operands.pop();
-        if (!right) {
+        const left = operands.pop();
+        if (!left) {
           return new UnexpectedTokenError(operatorToken, 'valid expression');
         }
         operands.push(new ExpressionNode(operatorToken, [left, right]));
