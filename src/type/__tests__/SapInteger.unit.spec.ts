@@ -13,25 +13,25 @@ describe('SapInteger Unit Tests', () => {
 
   describe('parse', () => {
     test('positive integer parsed correctly', () => {
-      expect(sapInteger.parse([makeToken('5')])).toBe(5);
+      expect(sapInteger.parse(makeToken('5'))).toBe(5);
     });
 
     test('negative integer parsed correctly', () => {
-      expect(sapInteger.parse([makeToken('-4')])).toBe(-4);
+      expect(sapInteger.parse(makeToken('-4'))).toBe(-4);
     });
 
     test('zero parsed correctly', () => {
-      expect(sapInteger.parse([makeToken('0')])).toBe(0);
+      expect(sapInteger.parse(makeToken('0'))).toBe(0);
     });
 
     test('floating point input gives error', () => {
       const token = makeToken('4.3');
-      expect(sapInteger.parse([token])).toEqual(new SapTypeError(token, sapInteger));
+      expect(sapInteger.parse(token)).toEqual(new SapTypeError(token, sapInteger));
     });
 
     test('non-numerical input gives error', () => {
       const token = makeToken('pumpkin');
-      expect(sapInteger.parse([token])).toEqual(new SapTypeError(token, sapInteger));
+      expect(sapInteger.parse(token)).toEqual(new SapTypeError(token, sapInteger));
     });
   });
 

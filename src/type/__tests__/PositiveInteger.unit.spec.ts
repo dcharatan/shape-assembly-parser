@@ -14,27 +14,27 @@ describe('PositiveInteger Unit Tests', () => {
 
   describe('parse', () => {
     test('positive integer parsed correctly', () => {
-      expect(positiveInteger.parse([makeToken('5')])).toBe(5);
+      expect(positiveInteger.parse(makeToken('5'))).toBe(5);
     });
 
     test('negative integer parsed correctly', () => {
       const token = makeToken('-4');
-      expect(positiveInteger.parse([token])).toEqual(new SapRangeError(token, 1, Infinity));
+      expect(positiveInteger.parse(token)).toEqual(new SapRangeError(token, 1, Infinity));
     });
 
     test('zero parsed correctly', () => {
       const token = makeToken('0');
-      expect(positiveInteger.parse([token])).toEqual(new SapRangeError(token, 1, Infinity));
+      expect(positiveInteger.parse(token)).toEqual(new SapRangeError(token, 1, Infinity));
     });
 
     test('floating point input gives error', () => {
       const token = makeToken('4.3');
-      expect(positiveInteger.parse([token])).toEqual(new SapTypeError(token, positiveInteger));
+      expect(positiveInteger.parse(token)).toEqual(new SapTypeError(token, positiveInteger));
     });
 
     test('non-numerical input gives error', () => {
       const token = makeToken('tomato');
-      expect(positiveInteger.parse([token])).toEqual(new SapTypeError(token, positiveInteger));
+      expect(positiveInteger.parse(token)).toEqual(new SapTypeError(token, positiveInteger));
     });
   });
 

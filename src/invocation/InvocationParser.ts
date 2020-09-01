@@ -7,6 +7,8 @@ import NameValidator from '../name/NameValidator';
 import Invocation from './Invocation';
 import UnexpectedTokenError from '../error/UnexpectedTokenError';
 import IncompleteInvocationError from '../error/IncompleteInvocationError';
+import ExpressionParser from '../expression/ExpressionParser';
+import ExpressionNode from '../expression/ExpressionNode';
 
 interface AssignmentStructure {
   assignmentToken: Token | undefined;
@@ -20,6 +22,7 @@ interface DefinitionStructure {
 
 export default class InvocationParser {
   private nameValidator = new NameValidator();
+  private expressionParser = new ExpressionParser();
 
   public parseInvocation(statement: Statement): Invocation | SapError {
     // Validate indentation level.
@@ -50,7 +53,19 @@ export default class InvocationParser {
       return argumentTokens;
     }
 
-    return new Invocation(parsedDefinition.definitionToken, argumentTokens, parsedAssignment.assignmentToken);
+    // Parse each argument expression.
+    const argumentExpressions = argumentTokens.map((tokens) => this.expressionParser.parseExpression(tokens));
+    for (const argumentExpression of argumentExpressions) {
+      if (argumentExpression instanceof SapError) {
+        return argumentExpression;
+      }
+    }
+
+    return new Invocation(
+      parsedDefinition.definitionToken,
+      argumentExpressions as ExpressionNode[],
+      parsedAssignment.assignmentToken,
+    );
   }
 
   private parseAssignment(tokens: Token[]): AssignmentStructure | SapError {

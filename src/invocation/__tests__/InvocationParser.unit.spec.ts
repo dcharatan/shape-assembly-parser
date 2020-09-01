@@ -2,6 +2,7 @@ import InvocationParser from '../InvocationParser';
 import Statement from '../../statement/Statement';
 import Token from '../../token/Token';
 import SapError from '../../error/SapError';
+import ExpressionNode from '../../expression/ExpressionNode';
 
 const makeToken = (text: string) => new Token(text, 0, 1);
 const makeStatement = (tokens: Token[], indentation: number) => new Statement(tokens, indentation);
@@ -19,7 +20,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [],
+        argumentExpressions: [],
         assignmentToken: undefined,
       });
     });
@@ -29,7 +30,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [[tokens[2]], [tokens[4]]],
+        argumentExpressions: [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])],
         assignmentToken: undefined,
       });
     });
@@ -39,7 +40,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[2],
-        argumentTokens: [[tokens[4]]],
+        argumentExpressions: [new ExpressionNode(tokens[4], [])],
         assignmentToken: tokens[0],
       });
     });
@@ -109,7 +110,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [[tokens[2]], [tokens[4]]],
+        argumentExpressions: [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])],
         assignmentToken: undefined,
       });
     });
@@ -119,7 +120,10 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [tokens.slice(2, 5)],
+        argumentExpressions: [new ExpressionNode(tokens[3], [
+          new ExpressionNode(tokens[2], []),
+          new ExpressionNode(tokens[4], []),
+        ])],
         assignmentToken: undefined,
       });
     });
@@ -129,7 +133,13 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: [tokens.slice(2, 5), [tokens[6]], tokens.slice(8, 11)],
+        argumentExpressions: [new ExpressionNode(tokens[3], [
+          new ExpressionNode(tokens[2], []),
+          new ExpressionNode(tokens[4], []),
+        ]), new ExpressionNode(tokens[6], []), new ExpressionNode(tokens[9], [
+          new ExpressionNode(tokens[8], []),
+          new ExpressionNode(tokens[10], []),
+        ])],
         assignmentToken: undefined,
       });
     });
@@ -158,7 +168,7 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentTokens: tokens.filter((_, i) => i % 2 === 0 && i > 0).map((token) => [token]),
+        argumentExpressions: tokens.filter((_, i) => i % 2 === 0 && i > 0).map((token) => new ExpressionNode(token, [])),
         assignmentToken: undefined,
       });
     });

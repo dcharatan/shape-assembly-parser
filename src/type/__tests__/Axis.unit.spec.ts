@@ -14,29 +14,29 @@ describe('Axis Unit Tests', () => {
   describe('parse', () => {
     test('number gives TypeError', () => {
       const token = makeToken('5');
-      expect(axis.parse([token])).toEqual(new SapTypeError(token, axis));
+      expect(axis.parse(token)).toEqual(new SapTypeError(token, axis));
     });
 
     test('word gives TypeError', () => {
       const token = makeToken('cabbage');
-      expect(axis.parse([token])).toEqual(new SapTypeError(token, axis));
+      expect(axis.parse(token)).toEqual(new SapTypeError(token, axis));
     });
 
     test('bad capitalization gives error (x)', () => {
       const token = makeToken('x');
-      expect(axis.parse([token])).toEqual(new SapTypeError(token, axis));
+      expect(axis.parse(token)).toEqual(new SapTypeError(token, axis));
     });
 
     test('X parsed correctly', () => {
-      expect(axis.parse([makeToken('X')])).toBe('X');
+      expect(axis.parse(makeToken('X'))).toBe('X');
     });
 
     test('Y parsed correctly', () => {
-      expect(axis.parse([makeToken('Y')])).toBe('Y');
+      expect(axis.parse(makeToken('Y'))).toBe('Y');
     });
 
     test('Z parsed correctly', () => {
-      expect(axis.parse([makeToken('Z')])).toBe('Z');
+      expect(axis.parse(makeToken('Z'))).toBe('Z');
     });
   });
 

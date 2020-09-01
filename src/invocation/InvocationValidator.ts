@@ -5,6 +5,7 @@ import InvocationError from '../error/InvocationError';
 import AlreadyDeclaredError from '../error/AlreadyDeclaredError';
 import UnexpectedAssignmentError from '../error/UnexpectedAssignmentError';
 import ArgumentMismatchError from '../error/ArgumentMismatchError';
+import ExpressionNode from '../expression/ExpressionNode';
 
 export default class InvocationValidator {
   public validateInvocation(
@@ -32,23 +33,32 @@ export default class InvocationValidator {
     }
 
     // Validate the argument count.
-    if (definition.argumentTypes.length !== invocation.argumentTokens.length) {
+    if (definition.argumentTypes.length !== invocation.argumentExpressions.length) {
       return new ArgumentMismatchError(
         invocation.definitionToken,
         definition.argumentTypes.length,
-        invocation.argumentTokens.length,
+        invocation.argumentExpressions.length,
       );
     }
 
     // Validate the arguments.
-    for (let i = 0; i < invocation.argumentTokens.length; i++) {
-      const argumentTokens = invocation.argumentTokens[i];
-      const argumentType = definition.argumentTypes[i];
-      const parsed = argumentType.parse(argumentTokens, previousInvocations);
-      if (parsed instanceof SapError) {
-        return parsed;
+    for (let i = 0; i < invocation.argumentExpressions.length; i++) {
+      const leaves = this.getLeaves(invocation.argumentExpressions[i]);
+      const parsedLeaves = leaves.map((leaf) => definition.argumentTypes[i].parse(leaf.token, previousInvocations));
+      for (const parsedLeaf of parsedLeaves) {
+        if (parsedLeaf instanceof SapError) {
+          return parsedLeaf;
+        }
       }
     }
     return undefined;
+  }
+
+  private getLeaves(node: ExpressionNode): ExpressionNode[] {
+    if (node.children.length === 0) {
+      return [node];
+    } else {
+      return node.children.reduce((nodes: ExpressionNode[], child) => [...nodes, ...this.getLeaves(child)], []);
+    }
   }
 }

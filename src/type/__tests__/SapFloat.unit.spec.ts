@@ -13,20 +13,20 @@ describe('SapFloat Unit Tests', () => {
 
   describe('parse', () => {
     test('positive integer parsed correctly', () => {
-      expect(sapFloat.parse([makeToken('5')])).toBe(5);
+      expect(sapFloat.parse(makeToken('5'))).toBe(5);
     });
 
     test('negative floating point number parsed correctly', () => {
-      expect(sapFloat.parse([makeToken('-4.3')])).toBe(-4.3);
+      expect(sapFloat.parse(makeToken('-4.3'))).toBe(-4.3);
     });
 
     test('zero parsed correctly', () => {
-      expect(sapFloat.parse([makeToken('0')])).toBe(0);
+      expect(sapFloat.parse(makeToken('0'))).toBe(0);
     });
 
     test('non-numerical input gives error', () => {
       const token = makeToken('cucumber');
-      expect(sapFloat.parse([token])).toEqual(new SapTypeError(token, sapFloat));
+      expect(sapFloat.parse(token)).toEqual(new SapTypeError(token, sapFloat));
     });
   });
 

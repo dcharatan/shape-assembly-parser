@@ -62,14 +62,10 @@ describe('ExpressionParser Unit Tests', () => {
       test('-5 * 3 / -1', () => {
         const given = ['-', '5', '*', '3', '/', '-', '1'].map(makeToken);
         const expected = new ExpressionNode(given[2], [
-          new ExpressionNode(given[0], [
-            new ExpressionNode(given[1], []),
-          ]),
+          new ExpressionNode(given[0], [new ExpressionNode(given[1], [])]),
           new ExpressionNode(given[4], [
             new ExpressionNode(given[3], []),
-            new ExpressionNode(given[5], [
-              new ExpressionNode(given[6], []),
-            ]),
+            new ExpressionNode(given[5], [new ExpressionNode(given[6], [])]),
           ]),
         ]);
         expect(expressionParser.parseExpression(given)).toEqual(expected);
@@ -182,6 +178,11 @@ describe('ExpressionParser Unit Tests', () => {
 
       test('1 * )', () => {
         const given = ['1', '*', ')'].map(makeToken);
+        expect(expressionParser.parseExpression(given)).toBeInstanceOf(SapError);
+      });
+
+      test('1-*-9', () => {
+        const given = ['1', '-', '*', '-', '9'].map(makeToken);
         expect(expressionParser.parseExpression(given)).toBeInstanceOf(SapError);
       });
     });

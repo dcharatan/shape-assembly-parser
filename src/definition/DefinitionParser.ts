@@ -8,9 +8,8 @@ import InvocationParser from '../invocation/InvocationParser';
 import InvocationValidator from '../invocation/InvocationValidator';
 import Invocation from '../invocation/Invocation';
 import Declaration from './Declaration';
-import PositiveFloat from '../type/PositiveFloat';
 import BlockType from '../type/BlockType';
-import SapBoolean from '../type/SapBoolean';
+import UnknownType from '../type/UnknownType';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -72,9 +71,7 @@ export default class DefinitionParser {
   }
 
   private makeCustomDefinition(declaration: Declaration, invocations: Invocation[]): Definition {
-    const types = [new PositiveFloat(), new PositiveFloat(), new PositiveFloat(), new SapBoolean()].filter(
-      (_, index) => index < declaration.parameterTokens.length,
-    );
+    const types = declaration.parameterTokens.map(() => new UnknownType());
     return new Definition(declaration, invocations, types, new BlockType());
   }
 }
