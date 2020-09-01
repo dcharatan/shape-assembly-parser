@@ -9,13 +9,13 @@ import UnexpectedTokenError from '../error/UnexpectedTokenError';
 import IncompleteInvocationError from '../error/IncompleteInvocationError';
 
 interface AssignmentStructure {
-  assignmentToken: Token | undefined,
-  invocationTokens: Token[],
+  assignmentToken: Token | undefined;
+  invocationTokens: Token[];
 }
 
 interface DefinitionStructure {
-  definitionToken: Token,
-  argumentTokens: Token[],
+  definitionToken: Token;
+  argumentTokens: Token[];
 }
 
 export default class InvocationParser {
@@ -61,12 +61,12 @@ export default class InvocationParser {
       return {
         assignmentToken: tokens[0],
         invocationTokens: tokens.slice(2),
-      }
+      };
     }
     return {
       assignmentToken: undefined,
       invocationTokens: tokens,
-    }
+    };
   }
 
   private parseDefinition(tokens: Token[]): DefinitionStructure | SapError {
