@@ -1,12 +1,9 @@
 import Token from '../token/Token';
 import SapError from '../error/SapError';
 import SapType from './SapType';
-import SapTypeError from '../error/SapTypeError';
-import Invocation from '../invocation/Invocation';
-
-export default class BlockType implements SapType<Invocation> {
-  parse(token: Token, blocksInScope: Invocation[]): Invocation | SapError {
-    return blocksInScope.find((block) => block.assignmentToken?.text === token.text) || new SapTypeError(token, this);
+export default class BlockType implements SapType<unknown> {
+  parse(token: Token): unknown | SapError {
+    throw new Error(`BlockType is a reference type and should not be parsed (token: ${token.text}).`);
   }
 
   public get name(): string {
