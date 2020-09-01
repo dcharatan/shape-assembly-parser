@@ -39,6 +39,11 @@ describe('PositiveFloat Unit Tests', () => {
       const token = makeToken('radish');
       expect(positiveFloat.parse(token)).toEqual(new SapTypeError(token, positiveFloat));
     });
+
+    test('non-numerical input gives error', () => {
+      const token = makeToken('1.000xxadsadksjd');
+      expect(positiveFloat.parse(token)).toEqual(new SapTypeError(token, positiveFloat));
+    });
   });
 
   describe('name', () => {

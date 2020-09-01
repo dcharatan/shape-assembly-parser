@@ -5,7 +5,7 @@ import SapTypeError from '../error/SapTypeError';
 
 export default class SapFloat implements SapType<number> {
   parse(token: Token): number | SapError {
-    const asFloat = Number.parseFloat(token.text);
+    const asFloat = Number(token.text);
     return Number.isNaN(asFloat) ? new SapTypeError(token, this) : asFloat;
   }
 
