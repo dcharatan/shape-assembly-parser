@@ -7,7 +7,6 @@ import PositiveInteger from '../../type/PositiveInteger';
 import BlockType from '../../type/BlockType';
 import AlreadyDeclaredError from '../../error/AlreadyDeclaredError';
 import ArgumentMismatchError from '../../error/ArgumentMismatchError';
-import SapTypeError from '../../error/SapTypeError';
 import UnexpectedAssignmentError from '../../error/UnexpectedAssignmentError';
 import InvocationError from '../../error/InvocationError';
 import ExpressionNode from '../../expression/ExpressionNode';
@@ -31,7 +30,7 @@ describe('InvocationValidator Unit Tests', () => {
         false,
         undefined,
       );
-      expect(validator.validateInvocation(invocation, [definition], [])).toBeUndefined();
+      expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(Map);
     });
 
     test('correct parsing for invocation assignment and no arguments', () => {
@@ -43,7 +42,7 @@ describe('InvocationValidator Unit Tests', () => {
         false,
         new BlockType(),
       );
-      expect(validator.validateInvocation(invocation, [definition], [])).toBeUndefined();
+      expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(Map);
     });
 
     test('correct parsing for multiple invocations without arguments', () => {
@@ -53,7 +52,7 @@ describe('InvocationValidator Unit Tests', () => {
       const definition = new Definition(new Declaration(makeToken('eat_celery'), []), [], [], false, new BlockType());
       expect(
         validator.validateInvocation(invocation, [previousDefinition, definition], [previousInvocation]),
-      ).toBeUndefined();
+      ).toBeInstanceOf(Map);
     });
 
     test('invoking undefined function gives error', () => {
@@ -100,7 +99,7 @@ describe('InvocationValidator Unit Tests', () => {
       expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(ArgumentMismatchError);
     });
 
-    test('argument type mismatch gives error', () => {
+    test('argument type mismatch does not give error (handled elsewhere)', () => {
       const invocation = new Invocation(makeToken('eat_celery'), [new ExpressionNode(makeToken('not_an_integer'), [])], undefined);
       const definition = new Definition(
         new Declaration(makeToken('eat_celery'), [makeToken('num_sticks')]),
@@ -109,7 +108,7 @@ describe('InvocationValidator Unit Tests', () => {
         false,
         undefined,
       );
-      expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(SapTypeError);
+      expect(validator.validateInvocation(invocation, [definition], [])).toBeInstanceOf(Map);
     });
   });
 });
