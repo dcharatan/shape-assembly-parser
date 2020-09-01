@@ -65,12 +65,12 @@ export default class ShapeAssemblyParser {
   public parseShapeAssemblyProgram(program: string): ShapeAssemblyProgram {
     const tokens = this.tokenizer.tokenize(program);
     const { statements, errors: statementErrors } = this.statementParser.parseStatements(tokens);
-    const { definitions, errors: definitionErrors } = this.definitionParser.parseDefinitions(
+    const { result, errors: definitionErrors } = this.definitionParser.parseDefinitions(
       this.makeStandardDefinitions(),
       statements,
     );
     return {
-      definitions,
+      definitions: result,
       errors: [...statementErrors, ...definitionErrors],
     };
   }

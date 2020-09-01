@@ -11,6 +11,7 @@ import Declaration from './Declaration';
 import UnknownType from '../type/UnknownType';
 import SapType from '../type/SapType';
 import SapTypeError from '../error/SapTypeError';
+import WithErrors from '../error/WithErrors';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -21,7 +22,7 @@ export default class DefinitionParser {
   public parseDefinitions(
     existingDefinitions: Definition[],
     statements: Statement[],
-  ): { definitions: Definition[]; errors: SapError[] } {
+  ): WithErrors<Definition[]> {
     const errors: SapError[] = [];
     const definitions = existingDefinitions;
     const chunks = this.splitter.splitIntoDefinitions(statements);
@@ -80,7 +81,7 @@ export default class DefinitionParser {
       }
     });
 
-    return { definitions, errors };
+    return { result: definitions, errors };
   }
 
   private makeCustomDefinition(declaration: Declaration, invocations: Invocation[], typeMap: Map<string, SapType<unknown>>): Definition {
