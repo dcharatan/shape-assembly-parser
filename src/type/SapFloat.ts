@@ -4,6 +4,8 @@ import SapType from './SapType';
 import SapTypeError from '../error/SapTypeError';
 
 export default class SapFloat implements SapType<number> {
+  public validOperators = new Set<string>(['*', '/', '+', '-']);
+
   parse(token: Token): number | SapError {
     const asFloat = Number(token.text);
     return Number.isNaN(asFloat) ? new SapTypeError(token, this) : asFloat;

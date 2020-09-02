@@ -1,5 +1,5 @@
 import Token from '../token/Token';
 
 export default class Declaration {
-  constructor(public nameToken: Token, public parameterTokens: Token[]) {}
+  constructor(public nameToken: Token, public parameterTokens: Token[], public readonly annotationToken?: Token) {}
 }

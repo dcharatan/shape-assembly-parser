@@ -10,6 +10,7 @@ import SapType from '../type/SapType';
 import NameValidator from '../name/NameValidator';
 import SapTypeError from '../error/SapTypeError';
 import NotDeclaredError from '../error/NotDeclaredError';
+import OperatorMismatchError from '../error/OperatorMismatchError';
 
 export default class InvocationValidator {
   private nameValidator: NameValidator = new NameValidator();
@@ -58,7 +59,7 @@ export default class InvocationValidator {
 
     // Validate the arguments.
     for (let i = 0; i < invocation.argumentExpressions.length; i++) {
-      const leaves = this.getLeaves(invocation.argumentExpressions[i]);
+      const { leaves, operators } = this.getLeavesAndOperators(invocation.argumentExpressions[i]);
       const expectedType = definition.argumentTypes[i];
 
       for (const leaf of leaves) {
@@ -85,15 +86,29 @@ export default class InvocationValidator {
           return new SapTypeError(leaf.token, expectedType);
         }
       }
+
+      for (const operator of operators) {
+        // Check if the operator is valid for the expected type.
+        if (!expectedType.validOperators.has(operator.token.text)) {
+          return new OperatorMismatchError(operator.token, expectedType);
+        }
+      }
     }
     return undefined;
   }
 
-  private getLeaves(node: ExpressionNode): ExpressionNode[] {
+  private getLeavesAndOperators(node: ExpressionNode): { leaves: ExpressionNode[], operators: ExpressionNode[] } {
     if (node.children.length === 0) {
-      return [node];
+      return { leaves: [node], operators: [] };
     } else {
-      return node.children.reduce((nodes: ExpressionNode[], child) => [...nodes, ...this.getLeaves(child)], []);
+      const leaves: ExpressionNode[] = [];
+      const operators: ExpressionNode[] = [node];
+      for (const child of node.children) {
+        const result = this.getLeavesAndOperators(child);
+        leaves.push(...result.leaves);
+        operators.push(...result.operators);
+      }
+      return { leaves, operators };
     }
   }
 }

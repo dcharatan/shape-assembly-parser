@@ -5,6 +5,8 @@ import SapTypeError from '../error/SapTypeError';
 
 type AxisEnum = 'X' | 'Y' | 'Z';
 export default class Axis implements SapType<AxisEnum> {
+  public validOperators = new Set<string>();
+
   parse(token: Token): AxisEnum | SapError {
     if (token.text === 'X' || token.text === 'Y' || token.text === 'Z') {
       return token.text;

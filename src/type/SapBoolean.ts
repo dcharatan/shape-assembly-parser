@@ -4,6 +4,8 @@ import SapType from './SapType';
 import SapTypeError from '../error/SapTypeError';
 
 export default class SapBoolean implements SapType<boolean> {
+  public validOperators = new Set<string>();
+
   parse(token: Token): boolean | SapError {
     if (token.text === 'True') {
       return true;

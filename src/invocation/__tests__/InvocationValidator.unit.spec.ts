@@ -9,6 +9,7 @@ import SapError from '../../error/SapError';
 import PositiveFloat from '../../type/PositiveFloat';
 import BlockType from '../../type/BlockType';
 import SapType from '../../type/SapType';
+import SapBoolean from '../../type/SapBoolean';
 
 const makeToken = (text: string) => new Token(text, 0, 1);
 
@@ -18,6 +19,7 @@ describe('InvocationValidator Unit Tests', () => {
   let validator: InvocationValidator;
   let existingDefinition: Definition;
   let existingDefinition2: Definition;
+  let existingDefinition3: Definition;
 
   beforeEach(() => {
     validator = new InvocationValidator();
@@ -38,6 +40,15 @@ describe('InvocationValidator Unit Tests', () => {
       false,
       false,
       new BlockType(),
+    );
+    existingDefinition3 = new Definition(
+      new Declaration(makeToken('eat_celery'), [makeToken('with_toppings')]),
+      [],
+      [new SapBoolean()],
+      false,
+      false,
+      false,
+      undefined,
     );
   });
 
@@ -162,6 +173,12 @@ describe('InvocationValidator Unit Tests', () => {
       test('expression token cannot be parsed', () => {
         const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('True')], undefined);
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
+      });
+
+      test('invalid operator for operands', () => {
+        const expression = new ExpressionNode(makeToken('*'), [makeExpression('True'), makeExpression('True')]);
+        const invocation = new Invocation(makeToken('eat_celery'), [expression], undefined);
+        expect(validator.validateInvocation(invocation, [existingDefinition3], new Map())).toBeInstanceOf(SapError);
       });
     });
   });

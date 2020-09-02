@@ -5,6 +5,8 @@ import SapTypeError from '../error/SapTypeError';
 
 type SideEnum = 'right' | 'left' | 'top' | 'bot' | 'front' | 'back';
 export default class Side implements SapType<SideEnum> {
+  public validOperators = new Set<string>();
+
   parse(token: Token): SideEnum | SapError {
     if (
       token.text === 'right' ||
