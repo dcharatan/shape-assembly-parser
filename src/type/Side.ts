@@ -24,4 +24,8 @@ export default class Side implements SapType<SideEnum> {
   public get name(): string {
     return 'side';
   }
+
+  public evaluate(): SideEnum | SapError {
+    throw new Error('no operators supported');
+  }
 }

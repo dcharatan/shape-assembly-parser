@@ -11,4 +11,8 @@ export default class UnknownType implements SapType<unknown> {
   public get name(): string {
     return 'unknown';
   }
+
+  public evaluate(): unknown {
+    throw new Error('no operators supported');
+  }
 }

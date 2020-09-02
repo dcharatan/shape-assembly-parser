@@ -13,6 +13,7 @@ import Axis from './type/Axis';
 import PositiveInteger from './type/PositiveInteger';
 import PositiveFloat from './type/PositiveFloat';
 import SapBoolean from './type/SapBoolean';
+export { default as Transpiler } from './transpiler/Transpiler';
 
 export interface ShapeAssemblyProgram {
   definitions: Definition[];

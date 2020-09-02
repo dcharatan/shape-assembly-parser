@@ -11,4 +11,8 @@ export default class BlockType implements SapType<unknown> {
   public get name(): string {
     return 'block';
   }
+
+  public evaluate(): unknown {
+    throw new Error('no operators supported');
+  }
 }

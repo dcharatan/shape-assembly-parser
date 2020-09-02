@@ -17,4 +17,8 @@ export default class Axis implements SapType<AxisEnum> {
   public get name(): string {
     return 'axis';
   }
+
+  public evaluate(): AxisEnum {
+    throw new Error('no operators supported');
+  }
 }

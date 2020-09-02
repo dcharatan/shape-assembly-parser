@@ -5,4 +5,5 @@ export default interface SapType<T> {
   parse(token: Token): T | SapError;
   name: string;
   readonly validOperators: Set<string>;
+  evaluate(operands: T[], operator: Token): T | SapError
 }

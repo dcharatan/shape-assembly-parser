@@ -19,4 +19,8 @@ export default class SapBoolean implements SapType<boolean> {
   public get name(): string {
     return 'boolean';
   }
+
+  public evaluate(): boolean {
+    throw new Error('no operators supported');
+  }
 }
