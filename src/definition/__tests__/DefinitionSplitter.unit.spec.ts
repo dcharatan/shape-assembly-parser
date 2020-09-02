@@ -43,5 +43,17 @@ describe('DefinitionSplitter Unit Tests', () => {
       ].map(makeStatement);
       expect(splitter.splitIntoDefinitions(statements)).toEqual([statements.slice(0, 1), statements.slice(1, 3)]);
     });
+
+    test('annotations grouped with defs', () => {
+      const statements = [
+        ['@assembly'],
+        ['def', 'zebra', '(', ')'],
+        ['@assembly'],
+        ['@root_assembly'],
+        ['def', 'porcupine', '(', 'hello', ')'],
+        ['ant', '(', ')'],
+      ].map(makeStatement);
+      expect(splitter.splitIntoDefinitions(statements)).toEqual([statements.slice(0, 2), statements.slice(2, 3), statements.slice(3, 6)]);
+    });
   });
 });
