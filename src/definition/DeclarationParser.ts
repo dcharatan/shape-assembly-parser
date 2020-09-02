@@ -24,7 +24,11 @@ export default class DeclarationParser {
   private nameToken?: Token = undefined;
   private parameterTokens: Token[] = [];
 
-  public parseDeclaration(statement: Statement, isRootAssembly: boolean, isChildAssembly: boolean): Declaration | SapError {
+  public parseDeclaration(
+    statement: Statement,
+    isRootAssembly: boolean,
+    isChildAssembly: boolean,
+  ): Declaration | SapError {
     // Validate indentation level.
     if (statement.indentationLevel !== 0) {
       return new IndentationLevelError(statement.tokens[0], 0, statement.indentationLevel);

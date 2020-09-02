@@ -7,6 +7,8 @@ export default class AssemblyParameterError extends SapErrorWithToken {
   }
 
   public get message(): string {
-    return `AssemblyParameterError: ${this.forRootAssembly ? 'Root' : 'Child'} assembly requires ${this.forRootAssembly ? 'zero arguments' : 'one argument'}.`;
+    return `AssemblyParameterError: ${this.forRootAssembly ? 'Root' : 'Child'} assembly requires ${
+      this.forRootAssembly ? 'zero arguments' : 'one argument'
+    }.`;
   }
 }

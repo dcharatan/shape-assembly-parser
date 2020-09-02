@@ -15,6 +15,7 @@ import { ASSEMBLY_ANNOTATION_KEYWORD, ROOT_ASSEMBLY_ANNOTATION_KEYWORD } from '.
 import BlockType from '../type/BlockType';
 import IncompleteDefinitionError from '../error/IncompleteDefinitionError';
 import Token from '../token/Token';
+import InvalidRootAssemblyError from '../error/InvalidRootAssemblyError';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -112,6 +113,14 @@ export default class DefinitionParser {
 
       // The invocation is valid.
       invocations.push(invocation);
+    }
+
+    // Ensure that bbox is declared for the root assembly.
+    if (isRootAssembly) {
+      const bboxType = functionLocalTypes.get('bbox');
+      if (!bboxType || bboxType.name !== new BlockType().name) {
+        returnValue.errors.push(new InvalidRootAssemblyError(declaration.nameToken));
+      }
     }
 
     returnValue.result = this.makeCustomDefinition(

@@ -97,7 +97,7 @@ export default class InvocationValidator {
     return undefined;
   }
 
-  private getLeavesAndOperators(node: ExpressionNode): { leaves: ExpressionNode[], operators: ExpressionNode[] } {
+  private getLeavesAndOperators(node: ExpressionNode): { leaves: ExpressionNode[]; operators: ExpressionNode[] } {
     if (node.children.length === 0) {
       return { leaves: [node], operators: [] };
     } else {
