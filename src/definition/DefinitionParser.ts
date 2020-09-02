@@ -12,6 +12,9 @@ import UnknownType from '../type/UnknownType';
 import SapType from '../type/SapType';
 import WithErrors from '../error/WithErrors';
 import { ASSEMBLY_ANNOTATION_KEYWORD, ROOT_ASSEMBLY_ANNOTATION_KEYWORD } from '../annotation/annotationKeywords';
+import BlockType from '../type/BlockType';
+import IncompleteDefinitionError from '../error/IncompleteDefinitionError';
+import Token from '../token/Token';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -45,6 +48,7 @@ export default class DefinitionParser {
     // Parse any annotations.
     let isChildAssembly = false;
     let isRootAssembly = false;
+    let annotationToken: Token | undefined = undefined;
     if (chunk[0].tokens.length === 1) {
       const token = chunk[0].tokens[0];
       if (token.text === ASSEMBLY_ANNOTATION_KEYWORD) {
@@ -52,10 +56,18 @@ export default class DefinitionParser {
       } else if (token.text === ROOT_ASSEMBLY_ANNOTATION_KEYWORD) {
         isRootAssembly = true;
       }
+      if (isChildAssembly || isRootAssembly) {
+        chunk = chunk.splice(1);
+        annotationToken = token;
+      }
+    }
+    if (chunk.length === 0 && annotationToken) {
+      returnValue.errors.push(new IncompleteDefinitionError(annotationToken));
+      return returnValue;
     }
 
     // Parse the declaration.
-    const declaration = this.declarationParser.parseDeclaration(chunk[0]);
+    const declaration = this.declarationParser.parseDeclaration(chunk[0], isRootAssembly, isChildAssembly);
     if (declaration instanceof SapError) {
       returnValue.errors.push(declaration);
       return returnValue;
@@ -73,6 +85,11 @@ export default class DefinitionParser {
     const functionLocalTypes = new Map<string, SapType<unknown> | null>();
     declaration.parameterTokens.forEach((parameterToken) => functionLocalTypes.set(parameterToken.text, null));
     const invocations: Invocation[] = [];
+
+    // The single argument for child assemblies has a known type (cuboid for the bounding box).
+    if (isChildAssembly) {
+      functionLocalTypes.set(declaration.parameterTokens[0].text, new BlockType());
+    }
 
     // Parse the invocations.
     for (const invocationStatement of chunk.slice(1)) {

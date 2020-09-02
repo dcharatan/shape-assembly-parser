@@ -7,6 +7,7 @@ import UnexpectedTokenError from '../error/UnexpectedTokenError';
 import NameValidator from '../name/NameValidator';
 import NameError from '../error/NameError';
 import IndentationLevelError from '../error/IndentationLevelError';
+import AssemblyParameterError from '../error/AssemblyParameterError';
 
 type Expectation =
   | 'DEF'
@@ -23,7 +24,7 @@ export default class DeclarationParser {
   private nameToken?: Token = undefined;
   private parameterTokens: Token[] = [];
 
-  public parseDeclaration(statement: Statement): Declaration | SapError {
+  public parseDeclaration(statement: Statement, isRootAssembly: boolean, isChildAssembly: boolean): Declaration | SapError {
     // Validate indentation level.
     if (statement.indentationLevel !== 0) {
       return new IndentationLevelError(statement.tokens[0], 0, statement.indentationLevel);
@@ -45,6 +46,15 @@ export default class DeclarationParser {
     if (expectation !== 'END' || !this.nameToken) {
       return new UnexpectedTokenError(statement.tokens[statement.tokens.length - 1], 'complete function declaration');
     }
+
+    // Validate argument count.
+    if (isRootAssembly && this.parameterTokens.length !== 0) {
+      return new AssemblyParameterError(this.nameToken, true);
+    }
+    if (isChildAssembly && this.parameterTokens.length !== 1) {
+      return new AssemblyParameterError(this.nameToken, false);
+    }
+
     return new Declaration(this.nameToken, this.parameterTokens);
   }
 
