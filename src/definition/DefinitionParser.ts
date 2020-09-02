@@ -11,7 +11,7 @@ import Declaration from './Declaration';
 import UnknownType from '../type/UnknownType';
 import SapType from '../type/SapType';
 import WithErrors from '../error/WithErrors';
-import { ASSEMBLY_ANNOTATION_KEYWORD, ROOT_ASSEMBLY_ANNOTATION_KEYWORD } from '../annotation/annotationKeywords';
+import { CHILD_ASSEMBLY_ANNOTATION_KEYWORD, ROOT_ASSEMBLY_ANNOTATION_KEYWORD } from '../annotation/annotationKeywords';
 import BlockType from '../type/BlockType';
 import IncompleteDefinitionError from '../error/IncompleteDefinitionError';
 import Token from '../token/Token';
@@ -52,7 +52,7 @@ export default class DefinitionParser {
     let annotationToken: Token | undefined = undefined;
     if (chunk[0].tokens.length === 1) {
       const token = chunk[0].tokens[0];
-      if (token.text === ASSEMBLY_ANNOTATION_KEYWORD) {
+      if (token.text === CHILD_ASSEMBLY_ANNOTATION_KEYWORD) {
         isChildAssembly = true;
       } else if (token.text === ROOT_ASSEMBLY_ANNOTATION_KEYWORD) {
         isRootAssembly = true;

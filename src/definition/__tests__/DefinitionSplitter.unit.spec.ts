@@ -46,9 +46,9 @@ describe('DefinitionSplitter Unit Tests', () => {
 
     test('annotations grouped with defs', () => {
       const statements = [
-        ['@assembly'],
+        ['@child_assembly'],
         ['def', 'zebra', '(', ')'],
-        ['@assembly'],
+        ['@child_assembly'],
         ['@root_assembly'],
         ['def', 'porcupine', '(', 'hello', ')'],
         ['ant', '(', ')'],

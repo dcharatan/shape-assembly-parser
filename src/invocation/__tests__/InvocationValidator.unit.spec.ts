@@ -12,7 +12,6 @@ import SapType from '../../type/SapType';
 import SapBoolean from '../../type/SapBoolean';
 
 const makeToken = (text: string) => new Token(text, 0, 1);
-
 const makeExpression = (text: string) => new ExpressionNode(makeToken(text), []);
 
 describe('InvocationValidator Unit Tests', () => {
