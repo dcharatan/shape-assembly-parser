@@ -20,7 +20,9 @@ export default class InvocationValidator {
     functionLocalTypes: Map<string, SapType<unknown> | null>,
   ): SapError | undefined {
     // Validate that a corresponding definition exists.
-    const definition = existingDefinitions.find((d) => d.declaration.nameToken.text === invocation.definitionToken.text);
+    const definition = existingDefinitions.find(
+      (d) => d.declaration.nameToken.text === invocation.definitionToken.text,
+    );
     if (!definition) {
       return new InvocationError(invocation.definitionToken);
     }
@@ -34,7 +36,9 @@ export default class InvocationValidator {
 
       // Check collisions with definition names and function-local variable names.
       const variableConflict = functionLocalTypes.get(invocation.assignmentToken.text) !== undefined;
-      const definitionConflict = existingDefinitions.find((d) => d.declaration.nameToken.text === invocation.assignmentToken?.text);
+      const definitionConflict = existingDefinitions.find(
+        (d) => d.declaration.nameToken.text === invocation.assignmentToken?.text,
+      );
       if (variableConflict || definitionConflict) {
         return new AlreadyDeclaredError(invocation.assignmentToken);
       }

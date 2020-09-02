@@ -1,5 +1,5 @@
-import separators from "../token/separators";
-import DEF_KEYWORD from "../definition/DefKeyword";
+import separators from '../token/separators';
+import DEF_KEYWORD from '../definition/DefKeyword';
 
 export default class NameValidator {
   private readonly RESERVED_KEYWORDS = ['True', 'False', ...Array.from(separators), DEF_KEYWORD];

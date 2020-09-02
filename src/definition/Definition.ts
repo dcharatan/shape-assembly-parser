@@ -8,6 +8,8 @@ export default class Definition {
     public invocations: Invocation[],
     public argumentTypes: SapType<unknown>[],
     public readonly isBuiltIn: boolean,
+    public readonly isRootAssembly: boolean,
+    public readonly isChildAssembly: boolean,
     public returnType?: SapType<unknown>,
   ) {}
 }

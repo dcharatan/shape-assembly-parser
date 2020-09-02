@@ -11,6 +11,7 @@ import Declaration from './Declaration';
 import UnknownType from '../type/UnknownType';
 import SapType from '../type/SapType';
 import WithErrors from '../error/WithErrors';
+import { ASSEMBLY_ANNOTATION_KEYWORD, ROOT_ASSEMBLY_ANNOTATION_KEYWORD } from '../annotation/annotationKeywords';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -18,10 +19,7 @@ export default class DefinitionParser {
   private invocationParser: InvocationParser = new InvocationParser();
   private invocationValidator: InvocationValidator = new InvocationValidator();
 
-  public parseDefinitions(
-    existingDefinitions: Definition[],
-    statements: Statement[],
-  ): WithErrors<Definition[]> {
+  public parseDefinitions(existingDefinitions: Definition[], statements: Statement[]): WithErrors<Definition[]> {
     // Split the statements into chunks.
     const chunks = this.splitter.splitIntoDefinitions(statements);
 
@@ -43,7 +41,19 @@ export default class DefinitionParser {
       errors: [],
       result: undefined,
     };
-    
+
+    // Parse any annotations.
+    let isChildAssembly = false;
+    let isRootAssembly = false;
+    if (chunk[0].tokens.length === 1) {
+      const token = chunk[0].tokens[0];
+      if (token.text === ASSEMBLY_ANNOTATION_KEYWORD) {
+        isChildAssembly = true;
+      } else if (token.text === ROOT_ASSEMBLY_ANNOTATION_KEYWORD) {
+        isRootAssembly = true;
+      }
+    }
+
     // Parse the declaration.
     const declaration = this.declarationParser.parseDeclaration(chunk[0]);
     if (declaration instanceof SapError) {
@@ -87,12 +97,24 @@ export default class DefinitionParser {
       invocations.push(invocation);
     }
 
-    returnValue.result = this.makeCustomDefinition(declaration, invocations, functionLocalTypes);
+    returnValue.result = this.makeCustomDefinition(
+      declaration,
+      invocations,
+      functionLocalTypes,
+      isRootAssembly,
+      isChildAssembly,
+    );
     return returnValue;
   }
 
-  private makeCustomDefinition(declaration: Declaration, invocations: Invocation[], typeMap: Map<string, SapType<unknown> | null>): Definition {
+  private makeCustomDefinition(
+    declaration: Declaration,
+    invocations: Invocation[],
+    typeMap: Map<string, SapType<unknown> | null>,
+    isRootAssembly: boolean,
+    isChildAssembly: boolean,
+  ): Definition {
     const types = declaration.parameterTokens.map((token) => typeMap.get(token.text) ?? new UnknownType());
-    return new Definition(declaration, invocations, types, false, undefined);
+    return new Definition(declaration, invocations, types, false, isRootAssembly, isChildAssembly, undefined);
   }
 }

@@ -120,10 +120,9 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentExpressions: [new ExpressionNode(tokens[3], [
-          new ExpressionNode(tokens[2], []),
-          new ExpressionNode(tokens[4], []),
-        ])],
+        argumentExpressions: [
+          new ExpressionNode(tokens[3], [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])]),
+        ],
         assignmentToken: undefined,
       });
     });
@@ -133,13 +132,11 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentExpressions: [new ExpressionNode(tokens[3], [
-          new ExpressionNode(tokens[2], []),
-          new ExpressionNode(tokens[4], []),
-        ]), new ExpressionNode(tokens[6], []), new ExpressionNode(tokens[9], [
-          new ExpressionNode(tokens[8], []),
-          new ExpressionNode(tokens[10], []),
-        ])],
+        argumentExpressions: [
+          new ExpressionNode(tokens[3], [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])]),
+          new ExpressionNode(tokens[6], []),
+          new ExpressionNode(tokens[9], [new ExpressionNode(tokens[8], []), new ExpressionNode(tokens[10], [])]),
+        ],
         assignmentToken: undefined,
       });
     });
@@ -168,7 +165,9 @@ describe('InvocationParser Unit Tests', () => {
       const statement = makeStatement(tokens, 1);
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
-        argumentExpressions: tokens.filter((_, i) => i % 2 === 0 && i > 0).map((token) => new ExpressionNode(token, [])),
+        argumentExpressions: tokens
+          .filter((_, i) => i % 2 === 0 && i > 0)
+          .map((token) => new ExpressionNode(token, [])),
         assignmentToken: undefined,
       });
     });

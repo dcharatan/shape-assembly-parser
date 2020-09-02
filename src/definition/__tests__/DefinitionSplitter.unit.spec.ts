@@ -53,7 +53,11 @@ describe('DefinitionSplitter Unit Tests', () => {
         ['def', 'porcupine', '(', 'hello', ')'],
         ['ant', '(', ')'],
       ].map(makeStatement);
-      expect(splitter.splitIntoDefinitions(statements)).toEqual([statements.slice(0, 2), statements.slice(2, 3), statements.slice(3, 6)]);
+      expect(splitter.splitIntoDefinitions(statements)).toEqual([
+        statements.slice(0, 2),
+        statements.slice(2, 3),
+        statements.slice(3, 6),
+      ]);
     });
   });
 });

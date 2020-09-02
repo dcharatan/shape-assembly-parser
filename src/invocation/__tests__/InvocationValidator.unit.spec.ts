@@ -26,12 +26,16 @@ describe('InvocationValidator Unit Tests', () => {
       [],
       [new PositiveInteger()],
       false,
+      false,
+      false,
       undefined,
     );
     existingDefinition2 = new Definition(
       new Declaration(makeToken('cook_celery'), [makeToken('num_sticks'), makeToken('how_long')]),
       [],
       [new PositiveInteger(), new PositiveFloat()],
+      false,
+      false,
       false,
       new BlockType(),
     );
@@ -44,15 +48,16 @@ describe('InvocationValidator Unit Tests', () => {
     });
 
     test('correct parsing for invocation with assignment', () => {
-      const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('5'), makeExpression('5')], makeToken('assignment_var'));
+      const invocation = new Invocation(
+        makeToken('cook_celery'),
+        [makeExpression('5'), makeExpression('5')],
+        makeToken('assignment_var'),
+      );
       expect(validator.validateInvocation(invocation, [existingDefinition2], new Map())).toBeUndefined();
     });
 
     test('correct parsing for invocation with expression tree', () => {
-      const expression = new ExpressionNode(makeToken('*'), [
-        makeExpression('5'),
-        makeExpression('5'),
-      ]);
+      const expression = new ExpressionNode(makeToken('*'), [makeExpression('5'), makeExpression('5')]);
       const invocation = new Invocation(makeToken('eat_celery'), [expression], undefined);
       expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeUndefined();
     });
@@ -60,7 +65,11 @@ describe('InvocationValidator Unit Tests', () => {
     test('correct parsing for invocation with matching variable with unknown type', () => {
       const functionLocalTypes = new Map<string, SapType<unknown> | null>();
       functionLocalTypes.set('arg_1', null);
-      const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('5'), makeExpression('arg_1')], makeToken('assignment_var'));
+      const invocation = new Invocation(
+        makeToken('cook_celery'),
+        [makeExpression('5'), makeExpression('arg_1')],
+        makeToken('assignment_var'),
+      );
       expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeUndefined();
       expect(functionLocalTypes.get('arg_1')).toBeInstanceOf(PositiveFloat);
     });
@@ -68,7 +77,11 @@ describe('InvocationValidator Unit Tests', () => {
     test('correct parsing for invocation with matching variable with matching type', () => {
       const functionLocalTypes = new Map<string, SapType<unknown> | null>();
       functionLocalTypes.set('arg_1', new PositiveFloat());
-      const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('5'), makeExpression('arg_1')], makeToken('assignment_var'));
+      const invocation = new Invocation(
+        makeToken('cook_celery'),
+        [makeExpression('5'), makeExpression('arg_1')],
+        makeToken('assignment_var'),
+      );
       expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeUndefined();
       expect(functionLocalTypes.get('arg_1')).toBeInstanceOf(PositiveFloat);
     });
@@ -80,7 +93,11 @@ describe('InvocationValidator Unit Tests', () => {
       });
 
       test('too many arguments', () => {
-        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5'), makeExpression('5')], undefined);
+        const invocation = new Invocation(
+          makeToken('eat_celery'),
+          [makeExpression('5'), makeExpression('5')],
+          undefined,
+        );
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
@@ -95,32 +112,56 @@ describe('InvocationValidator Unit Tests', () => {
       });
 
       test('assignment name collision with existing definition', () => {
-        const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('5'), makeExpression('5')], makeToken('eat_celery'));
-        expect(validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], new Map())).toBeInstanceOf(SapError);
+        const invocation = new Invocation(
+          makeToken('cook_celery'),
+          [makeExpression('5'), makeExpression('5')],
+          makeToken('eat_celery'),
+        );
+        expect(
+          validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], new Map()),
+        ).toBeInstanceOf(SapError);
       });
 
       test('assignment name collision with existing definition', () => {
         const functionLocalTypes = new Map<string, SapType<unknown> | null>();
         functionLocalTypes.set('existing_var', null);
-        const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('5'), makeExpression('5')], makeToken('existing_var'));
-        expect(validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], functionLocalTypes)).toBeInstanceOf(SapError);
+        const invocation = new Invocation(
+          makeToken('cook_celery'),
+          [makeExpression('5'), makeExpression('5')],
+          makeToken('existing_var'),
+        );
+        expect(
+          validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], functionLocalTypes),
+        ).toBeInstanceOf(SapError);
       });
 
       test('expression token is not existing var', () => {
-        const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('bad_var'), makeExpression('5')], makeToken('assignment_var'));
-        expect(validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], new Map())).toBeInstanceOf(SapError);
+        const invocation = new Invocation(
+          makeToken('cook_celery'),
+          [makeExpression('bad_var'), makeExpression('5')],
+          makeToken('assignment_var'),
+        );
+        expect(
+          validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], new Map()),
+        ).toBeInstanceOf(SapError);
       });
 
       test('expression token has mismatched type', () => {
         const functionLocalTypes = new Map<string, SapType<unknown> | null>();
         functionLocalTypes.set('arg_1', new PositiveInteger());
-        const invocation = new Invocation(makeToken('cook_celery'), [makeExpression('5'), makeExpression('arg_1')], makeToken('assignment_var'));
-        expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeInstanceOf(SapError);
+        const invocation = new Invocation(
+          makeToken('cook_celery'),
+          [makeExpression('5'), makeExpression('arg_1')],
+          makeToken('assignment_var'),
+        );
+        expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeInstanceOf(
+          SapError,
+        );
       });
 
       test('expression token cannot be parsed', () => {
         const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('True')], undefined);
-      expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
+        expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
     });
   });

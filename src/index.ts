@@ -25,7 +25,15 @@ export default class ShapeAssemblyParser {
   private definitionParser: DefinitionParser = new DefinitionParser();
 
   private makeStandardDefinition(name: string, argumentTypes: SapType<unknown>[], returnType?: SapType<unknown>) {
-    return new Definition(new Declaration(new Token(name, 0, 0), []), [], argumentTypes, true, returnType);
+    return new Definition(
+      new Declaration(new Token(name, 0, 0), []),
+      [],
+      argumentTypes,
+      true,
+      false,
+      false,
+      returnType,
+    );
   }
 
   private makeStandardDefinitions(): Definition[] {
