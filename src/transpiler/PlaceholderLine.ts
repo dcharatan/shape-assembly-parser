@@ -9,12 +9,43 @@ export default class PlaceholderLine {
     this.content.push(...components);
   }
 
-  public replacePlaceholder(find: Placeholder, replace: Placeholder) {
+  public replacePlaceholder(find: Placeholder, replace: PlaceholderComponent) {
     this.content.forEach((entry, index) => {
       if (entry === find) {
         this.content[index] = replace;
       }
     });
+  }
+
+  public getAssignmentPlaceholder(): Placeholder | undefined {
+    if (this.content.length >= 3 && this.content[1] instanceof Placeholder && this.content[2] === ' = ') {
+      return this.content[1];
+    }
+    return undefined;
+  }
+
+  public fillPlaceholders(fill: Map<Placeholder, string>) {
+    this.content.forEach((entry, index) => {
+      if (entry instanceof Placeholder) {
+        this.content[index] = fill.get(entry) ?? 'UNKNOWN';
+      }
+    });
+  }
+
+  public firstAssemblyPlaceholder(): Placeholder {
+    const placeholder = this.content.find((entry) => entry instanceof Placeholder && entry.forAssembly);
+    if (!placeholder || !(placeholder instanceof Placeholder)) {
+      throw new Error("No assembly placeholder found.");
+    }
+    return placeholder;
+  }
+
+  public containsPlaceholder(placeholder: Placeholder) {
+    return this.content.some((entry) => entry === placeholder);
+  }
+
+  public copy(): PlaceholderLine {
+    return new PlaceholderLine([...this.content]);
   }
 
   public evaluate(): string {

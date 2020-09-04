@@ -5,7 +5,7 @@ import PlaceholderLine from './PlaceholderLine';
 
 interface InvocationResult {
   inPlace: PlaceholderLine[] | Placeholder;
-  appendedAssemblies: PlaceholderLine[];
+  appendedAssemblies: PlaceholderLine[][];
 }
 
 export default class Transpiler {
@@ -40,8 +40,37 @@ export default class Transpiler {
     return this.populate(lines);
   }
 
-  private populate(lines: PlaceholderLine[]): string {
-    return lines.map((line) => line.evaluate()).join('\n');
+  private populate(assemblies: PlaceholderLine[][]): string {
+    const placeholderMap = new Map<Placeholder, string>();
+
+    // Map assembly placeholders.
+    assemblies.forEach((assembly, index) => {
+      const placeholder = assembly[0].firstAssemblyPlaceholder();
+      placeholderMap.set(placeholder, `Program_${index}`);
+    });
+
+    // Map cuboid placeholders.
+    assemblies.forEach((assembly) => {
+      let cuboidIndex = 0;
+      assembly.forEach((line) => {
+        const assignmentPlaceholder = line.getAssignmentPlaceholder();
+        if (assignmentPlaceholder) {
+          if (!assignmentPlaceholder.forAssembly) {
+            placeholderMap.set(assignmentPlaceholder, `cube${cuboidIndex}`);
+          }
+          cuboidIndex++;
+        }
+      });
+    });
+
+    // Make the substitutions.
+    assemblies.forEach((assembly) => {
+      assembly.forEach((line) => {
+        line.fillPlaceholders(placeholderMap);
+      });
+    });
+
+    return assemblies.map((assembly) => assembly.map((line) => line.evaluate()).join('\n')).join('\n');
   }
 
   private transpileInvocation(
@@ -63,7 +92,7 @@ export default class Transpiler {
 
     // Handle the invocations.
     const invocationLines: PlaceholderLine[] = [];
-    const appendedLines: PlaceholderLine[] = [];
+    const appendedLines: PlaceholderLine[][] = [];
     for (const invocation of definition.invocations) {
       const line = new PlaceholderLine(['    ']);
 
@@ -107,6 +136,21 @@ export default class Transpiler {
         // Find the placeholder in the local value map and replace it.
         for (const [text, placeholder] of Array.from(localValues)) {
           if (placeholder === cuboidPlaceholder) {
+            // Find the placeholder's declaration.
+            const declarationLine = invocationLines.find((line) => line.containsPlaceholder(cuboidPlaceholder));
+            if (!declarationLine) {
+              throw new Error("Could not find declaration for cuboid.");
+            }
+
+            // Add the placeholder's declaration (the bbox creation line) to the assembly that needs it.
+            for (const appendedAssembly of appendedLines) {
+              if (appendedAssembly[0].containsPlaceholder(assemblyPlaceholder)) {
+                const bboxLine = declarationLine.copy();
+                bboxLine.replacePlaceholder(cuboidPlaceholder, 'bbox');
+                appendedAssembly.splice(1, 0, bboxLine);
+              }
+            }
+
             // Find all previous placeholder usages.
             invocationLines.forEach((line) => line.replacePlaceholder(cuboidPlaceholder, assemblyPlaceholder));
 
@@ -174,7 +218,7 @@ export default class Transpiler {
       invocationLines.push(new PlaceholderLine(['}']));
       return {
         inPlace: placeholder,
-        appendedAssemblies: [...invocationLines, ...appendedLines],
+        appendedAssemblies: [[...invocationLines], ...appendedLines],
       };
     }
   }
