@@ -165,10 +165,12 @@ export default class Transpiler {
       
       // Add assignment if necessary.
       let isBoundingBoxLine = false;
-      if (invocation.assignmentToken) {
-        const placeholder = invocation.assignmentToken.text === 'bbox' ? 'bbox' : new Placeholder();
+      if (invocation.assignmentToken || invocation.definitionToken.text === 'Cuboid') {
+        const placeholder = invocation.assignmentToken?.text === 'bbox' ? 'bbox' : new Placeholder();
         isBoundingBoxLine = placeholder === 'bbox';
-        localValues.set(invocation.assignmentToken.text, placeholder);
+        if (invocation.assignmentToken) {
+          localValues.set(invocation.assignmentToken.text, placeholder);
+        }
         line.add(placeholder, ' = ');
       }
 
