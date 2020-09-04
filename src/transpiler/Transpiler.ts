@@ -1,12 +1,12 @@
-import { ShapeAssemblyProgram } from "..";
-import Definition from "../definition/Definition";
+import { ShapeAssemblyProgram } from '..';
+import Definition from '../definition/Definition';
+import Placeholder from './Placeholder';
+import PlaceholderLine from './PlaceholderLine';
 
-// WARNING: This code is really hacky. It wasn't supposed to get this bad.
-// This code has no tests because it's completely impractical to test.
-// Ideally, we would improve the native ShapeAssembly parser to more closely resemble "syntax sugar" ShapeAssembly.
-// Until that's done, this transpiles "syntax sugar" ShapeAssembly into normal ShapeAssembly.
-// However, expanding functions as macros and adding subassemblies messes with the cuboid numbering, so
-// subassemblies and functions can mess with the cuboid numbering and produce invalid results.
+interface InvocationResult {
+  inPlace: PlaceholderLine[] | Placeholder;
+  appendedAssemblies: PlaceholderLine[];
+}
 
 export default class Transpiler {
   public transpile(program: ShapeAssemblyProgram): string | undefined {
@@ -27,191 +27,155 @@ export default class Transpiler {
       return undefined;
     }
 
-    // Define transpilation for a function call.
-    let assemblyIndex = 0;
-    const processInvocation = (definition: Definition, args: Map<string, unknown>, addedFirstLine?: string, doNotIncrementAssemblyIndex: boolean = false): [number, string, string] => {
-      const index = assemblyIndex;
-      if (!doNotIncrementAssemblyIndex) {
-        assemblyIndex++;
+    // Map definition names to their definitions.
+    const definitionMap = new Map<string, Definition>();
+    for (const definition of program.definitions) {
+      definitionMap.set(definition.declaration.nameToken.text, definition);
+    }
+
+    // Get a transpiled version of an invocation of the root assembly's definition (with placeholders).
+    const lines = this.transpileInvocation(rootDefinition, [], definitionMap).appendedAssemblies;
+
+    // Fill in the placeholders.
+    return this.populate(lines);
+  }
+
+  private populate(lines: PlaceholderLine[]): string {
+    return lines.map((line) => line.evaluate()).join('\n');
+  }
+
+  private transpileInvocation(
+    definition: Definition,
+    evaluatedArguments: unknown[],
+    definitionMap: Map<string, Definition>,
+  ): InvocationResult {
+    // Built-in functions don't spawn additional lines.
+    if (definition.isBuiltIn) {
+      return { inPlace: [], appendedAssemblies: [] };
+    }
+
+    // Map variable names to values.
+    // The values are either numeric or placeholders for variables.
+    const localValues = new Map<string, unknown>();
+    definition.declaration.parameterTokens.forEach((token, index) => {
+      localValues.set(token.text, evaluatedArguments[index]);
+    });
+
+    // Handle the invocations.
+    const invocationLines: PlaceholderLine[] = [];
+    const appendedLines: PlaceholderLine[] = [];
+    for (const invocation of definition.invocations) {
+      const line = new PlaceholderLine(['    ']);
+
+      // Find the corresponding definition.
+      const invocationDefinition = definitionMap.get(invocation.definitionToken.text);
+      if (!invocationDefinition) {
+        throw new Error('Unknown invocation.');
       }
-      const lines: string[] = addedFirstLine ? [addedFirstLine] : [];
-      let cubeIndex = 0;
-      const variableNameToCubeName = new Map<string, string>();
-      let appendText = '';
-      for (const invocation of definition.invocations) {
-        // Find the corresponding definition.
-        const definition = program.definitions.find((d) => d.declaration.nameToken.text === invocation.definitionToken.text);
-        if (!definition) {
-          throw new Error('definition not found for invocation');
+
+      // Evaluate the arguments.
+      const invocationEvaluatedArguments = invocation.argumentExpressions.map((argumentExpression, index) => {
+        const type = invocationDefinition.argumentTypes[index];
+        const evaluatedArgument = argumentExpression.evaluate(type, localValues);
+
+        // True and false have to be capitalized to match ShapeAssembly syntax.
+        if (evaluatedArgument === true) {
+          return 'True';
+        } else if (evaluatedArgument === false) {
+          return 'False';
         }
-        let line = '    ';
+        return evaluatedArgument;
+      });
 
-        // Add assignment to the line.
-        if (invocation.assignmentToken) {
-          const variableName = invocation.assignmentToken.text;
-          if (variableName === 'bbox') {
-            line += 'bbox = ';
-          } else {
-            // Translate any non-bbox assignment tokens.
-            // TODO: Don't assume that all assignments are cuboids.
-            const cubeName = `cube${cubeIndex}`;
-            variableNameToCubeName.set(variableName, cubeName);
-            line += `${cubeName} = `;
-            cubeIndex++;
-          }
-        } else if (invocation.definitionToken.text === 'Cuboid') {
-          // Cuboid statements without a reference still need a number in original ShapeAssembly.
-          const cubeName = `cube${cubeIndex}`;
-          line += `${cubeName} = `;
-          cubeIndex++;
+      // Invoke the function.
+      const { inPlace, appendedAssemblies } = this.transpileInvocation(
+        invocationDefinition,
+        invocationEvaluatedArguments,
+        definitionMap,
+      );
+      appendedLines.push(...appendedAssemblies);
+
+      // If inPlace is a placeholder, it's a placeholder for an assembly.
+      // This means that there's a bounding box cuboid call that needs to be replaced with the assembly placeholder.
+      if (inPlace instanceof Placeholder) {
+        if (invocationEvaluatedArguments.length !== 1 || !(invocationEvaluatedArguments[0] instanceof Placeholder)) {
+          throw new Error("Unable to replace placeholder.");
         }
+        const assemblyPlaceholder = inPlace;
+        const cuboidPlaceholder = invocationEvaluatedArguments[0];
 
-        // Evaluate the arguments.
-        const evaluatedArguments = invocation.argumentExpressions.map((argument, index) => {
-          const argumentType = definition.argumentTypes[index];
-          return argument.evaluate(argumentType, args);
-        });
+        // Find the placeholder in the local value map and replace it.
+        for (const [text, placeholder] of Array.from(localValues)) {
+          if (placeholder === cuboidPlaceholder) {
+            // Find all previous placeholder usages.
+            invocationLines.forEach((line) => line.replacePlaceholder(cuboidPlaceholder, assemblyPlaceholder));
 
-        // Add the function call to the line.
-        if (definition.isBuiltIn) {
-          // Add function call itself to the line (for basic functions).
-          line += `${invocation.definitionToken.text}(`;
-        } else if (definition.isChildAssembly) {
-          // Expand into subassembly for child assemblies.
-          const argMap = new Map<string, unknown>();
-          evaluatedArguments.forEach((arg, index) => argMap.set(definition.declaration.parameterTokens[index].text, arg));
-
-          // Spooky hacks incoming!!
-          // Remove the line that made the bbox cuboid, update all cuboid indices, and decrement cubeIndex.
-          let found = false;
-          const zappedCubeName = variableNameToCubeName.get(invocation.argumentExpressions[0].token.text);
-          if (!zappedCubeName) {
-            throw new Error('how did u expect this hacky transpiler thing to even work lmao');
+            // Replace the placeholder for future usage.
+            localValues.set(text, assemblyPlaceholder);
+            break;
           }
-          let zappedLineIndex: number = -1;
-          const needsFix: Set<number> = new Set();
-          lines.forEach((prevLine, index) => {
-            // Get the zapped cuboid.
-            if (!found && prevLine.includes(zappedCubeName + ' =')) {
-              zappedLineIndex = index;
-              found = true;
-            }
-
-            // "Fix" all of the following cuboid indices by lowering them by one.
-            else if (found) {
-              const parts = prevLine.trim().split(' ');
-              if (parts.length >= 2 && parts[1] === '=' && parts[0].includes('cube')) {
-                const cubeIndex = Number.parseFloat(parts[0].slice(4));
-                if (isNaN(cubeIndex)) {
-                  throw new Error('bad number parsing uh oh');
-                }
-                needsFix.add(cubeIndex);
-                parts[0] = `***TEMPCUBE***${cubeIndex - 1}`;
-                lines[index] = '    ' + parts.join(' ');
-              }
-            }
-          });
-          lines.forEach((line, index) => {
-            for (const fix of Array.from(needsFix)) {
-              lines[index] = line.replace(`cube${fix}`, `***TEMPCUBE***${fix - 1}`);
-            }
-          });
-          lines.forEach((line, index) => {
-            lines[index] = line.replace('***TEMPCUBE***', 'cube');
-          });
-
-          // Get the zapped line's arguments.
-          const zappedLine = lines[zappedLineIndex];
-          const leftInclusive = zappedLine.indexOf('(') + 1;
-          const rightExclusive = zappedLine.length - 1;
-          if (zappedLine.charAt(zappedLine.length - 1) !== ')') {
-            throw new Error('bad assumption, closing ) is not there');
-          }
-          const zappedLineArgs = zappedLine.slice(leftInclusive, rightExclusive);
-
-          // Zap the line.
-          lines.splice(zappedLineIndex, 1);
-          cubeIndex--;
-
-          // Make the child.
-          const [childAssemblyIndex, childText, moreAppendText] = processInvocation(definition, argMap, `    bbox = Cuboid(${zappedLineArgs})`);
-          appendText += childText + moreAppendText;
-          line += `Program_${childAssemblyIndex} = Cuboid(${zappedLineArgs}`;
         }
+      } else {
+        invocationLines.push(...inPlace);
+      }
+      
+      // Add assignment if necessary.
+      let isBoundingBoxLine = false;
+      if (invocation.assignmentToken) {
+        const placeholder = invocation.assignmentToken.text === 'bbox' ? 'bbox' : new Placeholder();
+        isBoundingBoxLine = placeholder === 'bbox';
+        localValues.set(invocation.assignmentToken.text, placeholder);
+        line.add(placeholder, ' = ');
+      }
 
-        if (!definition.isBuiltIn && !definition.isChildAssembly && !definition.isRootAssembly) {
-          // Functions work like macros.
-          const argMap = new Map<string, unknown>();
-          evaluatedArguments.forEach((arg, index) => argMap.set(definition.declaration.parameterTokens[index].text, arg));
-          const res = processInvocation(definition, argMap, undefined, true);
-          appendText += res[2];
+      // Add the rest of the line.
+      line.add(invocationDefinition.declaration.nameToken.text, '(');
+      invocationEvaluatedArguments.forEach((evaluatedArgument, index) => {
+        const isLastArgument = index === invocationEvaluatedArguments.length - 1;
+        line.add(evaluatedArgument instanceof Placeholder ? evaluatedArgument : String(evaluatedArgument));
+        if (!isLastArgument) {
+          line.add(', ');
+        }
+      });
+      line.add(')');
 
-          // The first and last lines have to be discarded.
-          const parts = res[1].trim().split('\n');
-          const usedParts = parts.slice(1, parts.length - 1);
+      // Decide how to handle the line.
+      // There are two special cases:
+      // 1. Since function calls are expanded into macros, the call itself is hidden.
+      // 2. Child assemblies need to be reconciled with their bounding box's cuboid calls.
+      const isMacro = !invocationDefinition.isBuiltIn && !invocationDefinition.isChildAssembly && !invocationDefinition.isRootAssembly;
+      if (invocationDefinition.isChildAssembly) {
 
-          // The used parts' cuboid indices need to be updated to match.
-          ////////////////////////////
-          // THE FIXER
-          let macroIndex = 0;
-          let found = true;
-          while (found) {
-            found = false;
-            const oldCube = `cube${macroIndex}`;
-            const newCube = `***TEMPCUBE***${macroIndex + cubeIndex}`;
-            usedParts.forEach((usedPart, index) => {
-              found = found || usedPart.includes(oldCube);
-              usedParts[index] = usedPart.replace(oldCube, newCube);
-            });
-            if (found) {
-              macroIndex++;
-            }
-          }
-          cubeIndex += macroIndex;
-          usedParts.forEach((usedPart, index) => {
-            usedParts[index] = usedPart.replace('***TEMPCUBE***', 'cube');
-          });
-          ////////////////////////////
-          lines.push(...usedParts);
+      } else if (!isMacro) {
+        if (isBoundingBoxLine) {
+          // The line that declares the bounding box always goes first.
+          invocationLines.unshift(line);
         } else {
-          // Add arguments to the line.
-          if (!definition.isChildAssembly) {
-            invocation.argumentExpressions.forEach((argument, index) => {
-              // Replace cuboid arguments with the corresponding cuboid names.
-              const argumentIsCuboid = definition.argumentTypes[index].name === 'block';
-              const fix = (arg: any) => {
-                if (arg === true) {
-                  return 'True';
-                }
-                if (arg === false) {
-                  return 'False';
-                }
-                return arg;
-              }
-              line += argumentIsCuboid ? variableNameToCubeName.get(argument.token.text) ?? 'bbox' : fix(evaluatedArguments[index]);
-              const isLastArgument = index === invocation.argumentExpressions.length - 1;
-              if (!isLastArgument) {
-                line += ', ';
-              }
-            });
-          }
-
-          // Add the closing parenthesis to the line.
-          line += ')';
-
-          // bbox needs to be the first line
-          if (line.trim().split(' ')[0] === 'bbox') {
-            lines.unshift(line);
-          } else {
-            lines.push(line);
-          }
+          invocationLines.push(line);
         }
       }
-      return [index, `Assembly Program_${index} {\n${lines.join('\n')}\n}\n`, appendText];
-    };
+    }
 
-    // Recursively process all function calls.
-    const result = processInvocation(rootDefinition, new Map());
-    return result[1] + result[2];
+    // Decide what to return.
+    const isMacro = !definition.isChildAssembly && !definition.isRootAssembly;
+    if (isMacro) {
+      // Normal functions are treated like macros when they're transpiled.
+      // In other words, all of their lines are expanded into the calling function.
+      // However, if they call subassemblies, they can still have appendedAssemblies lines.
+      return {
+        inPlace: invocationLines,
+        appendedAssemblies: appendedLines,
+      };
+    } else {
+      // Assemblies don't add lines to the place where they're called.
+      // Instead, an assembly's invocations are wrapped in an assembly call.
+      const placeholder = new Placeholder(true);
+      invocationLines.unshift(new PlaceholderLine(['Assembly ', placeholder, ' {']));
+      invocationLines.push(new PlaceholderLine(['}']));
+      return {
+        inPlace: placeholder,
+        appendedAssemblies: [...invocationLines, ...appendedLines],
+      };
+    }
   }
 }
