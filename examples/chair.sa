@@ -1,0 +1,24 @@
+@child_assembly
+def back_asm(bbox):
+    surface = Cuboid(1.16, 0.64, 0.13, True)
+    slat = Cuboid(0.04, 0.76, 0.1, False)
+    attach(surface, bbox, 0.5, 0.1, 0.5, 0.5, 1, 0.7)
+    attach(slat, bbox, 0.5, 0, 0.5, 0.2, 0, 0.45)
+    attach(slat, surface, 0.5, 0.6, 0.8, 0.2, 0.3, 0.2)
+    reflect(slat, X)
+    
+
+@root_assembly
+def root_asm():
+    bbox = Cuboid(1.2, 1.4, 1, True)
+    base_bbox = Cuboid(0.9, 0.5, 0.8, True)
+    seat_bbox = Cuboid(1.1, 0.1, 0.9, True)
+    back_bbox = Cuboid(1.1, 0.9, 0.2, False)
+    back_asm(back_bbox)
+    arm_bbox = Cuboid(0.1, 0.4, 0.7, False)
+    attach(base_bbox, bbox, 0.5, 0, 0.5, 0.5, 0, 0.5)
+    squeeze(back_bbox, bbox, base_bbox, top, 0.5, 0.1)
+    attach(seat_bbox, base_bbox, 0.5, 0, 0.5, 0.5, 1, 0.5)
+    attach(arm_bbox, back_bbox, 0.5, 0.5, 0, 0.1, 0.3, 0.5)
+    attach(arm_bbox, seat_bbox, 0.5, 0, 0.5, 0.1, 0.7, 0.5)
+    reflect(arm_bbox, X)

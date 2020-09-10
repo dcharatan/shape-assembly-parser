@@ -1,9 +1,10 @@
 import Placeholder from './Placeholder';
+import Invocation from '../invocation/Invocation';
 
 type PlaceholderComponent = string | Placeholder;
 
 export default class PlaceholderLine {
-  constructor(private content: PlaceholderComponent[] = []) {}
+  constructor(private content: PlaceholderComponent[] = [], public readonly invocation?: Invocation) {}
 
   public add(...components: PlaceholderComponent[]) {
     this.content.push(...components);
@@ -27,7 +28,7 @@ export default class PlaceholderLine {
   public fillPlaceholders(fill: Map<Placeholder, string>) {
     this.content.forEach((entry, index) => {
       if (entry instanceof Placeholder) {
-        this.content[index] = fill.get(entry) ?? 'UNKNOWN';
+        this.content[index] = fill.get(entry) ?? 'bbox';
       }
     });
   }
@@ -35,7 +36,7 @@ export default class PlaceholderLine {
   public firstAssemblyPlaceholder(): Placeholder {
     const placeholder = this.content.find((entry) => entry instanceof Placeholder && entry.forAssembly);
     if (!placeholder || !(placeholder instanceof Placeholder)) {
-      throw new Error("No assembly placeholder found.");
+      throw new Error('No assembly placeholder found.');
     }
     return placeholder;
   }

@@ -59,6 +59,8 @@ export default class Transpiler {
             placeholderMap.set(assignmentPlaceholder, `cube${cuboidIndex}`);
           }
           cuboidIndex++;
+        } else if (line.invocation && line.invocation.definitionToken.text === 'reflect') {
+          cuboidIndex++;
         }
       });
     });
@@ -94,7 +96,7 @@ export default class Transpiler {
     const invocationLines: PlaceholderLine[] = [];
     const appendedLines: PlaceholderLine[][] = [];
     for (const invocation of definition.invocations) {
-      const line = new PlaceholderLine(['    ']);
+      const line = new PlaceholderLine(['    '], invocation);
 
       // Find the corresponding definition.
       const invocationDefinition = definitionMap.get(invocation.definitionToken.text);
@@ -128,7 +130,7 @@ export default class Transpiler {
       // This means that there's a bounding box cuboid call that needs to be replaced with the assembly placeholder.
       if (inPlace instanceof Placeholder) {
         if (invocationEvaluatedArguments.length !== 1 || !(invocationEvaluatedArguments[0] instanceof Placeholder)) {
-          throw new Error("Unable to replace placeholder.");
+          throw new Error('Unable to replace placeholder.');
         }
         const assemblyPlaceholder = inPlace;
         const cuboidPlaceholder = invocationEvaluatedArguments[0];
@@ -139,7 +141,7 @@ export default class Transpiler {
             // Find the placeholder's declaration.
             const declarationLine = invocationLines.find((line) => line.containsPlaceholder(cuboidPlaceholder));
             if (!declarationLine) {
-              throw new Error("Could not find declaration for cuboid.");
+              throw new Error('Could not find declaration for cuboid.');
             }
 
             // Add the placeholder's declaration (the bbox creation line) to the assembly that needs it.
@@ -162,7 +164,7 @@ export default class Transpiler {
       } else {
         invocationLines.push(...inPlace);
       }
-      
+
       // Add assignment if necessary.
       let isBoundingBoxLine = false;
       if (invocation.assignmentToken || invocation.definitionToken.text === 'Cuboid') {
@@ -189,9 +191,11 @@ export default class Transpiler {
       // There are two special cases:
       // 1. Since function calls are expanded into macros, the call itself is hidden.
       // 2. Child assemblies need to be reconciled with their bounding box's cuboid calls.
-      const isMacro = !invocationDefinition.isBuiltIn && !invocationDefinition.isChildAssembly && !invocationDefinition.isRootAssembly;
+      const isMacro =
+        !invocationDefinition.isBuiltIn &&
+        !invocationDefinition.isChildAssembly &&
+        !invocationDefinition.isRootAssembly;
       if (invocationDefinition.isChildAssembly) {
-
       } else if (!isMacro) {
         if (isBoundingBoxLine) {
           // The line that declares the bounding box always goes first.
