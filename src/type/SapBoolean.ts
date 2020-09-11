@@ -3,7 +3,7 @@ import SapError from '../error/SapError';
 import SapType from './SapType';
 import SapTypeError from '../error/SapTypeError';
 
-export default class SapBoolean implements SapType<boolean> {
+export default class SapBoolean extends SapType<boolean> {
   public validOperators = new Set<string>();
 
   parse(token: Token): boolean | SapError {

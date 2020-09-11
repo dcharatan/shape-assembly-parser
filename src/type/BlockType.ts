@@ -1,7 +1,7 @@
 import Token from '../token/Token';
 import SapError from '../error/SapError';
 import SapType from './SapType';
-export default class BlockType implements SapType<unknown> {
+export default class BlockType extends SapType<unknown> {
   public validOperators = new Set<string>();
 
   parse(token: Token): unknown | SapError {

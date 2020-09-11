@@ -3,7 +3,7 @@ export default class Placeholder {
 
   constructor(public readonly forAssembly: boolean = false) {}
 
-  public fill(text: string) {
+  public fill(text: string): void {
     this.text = text;
   }
 

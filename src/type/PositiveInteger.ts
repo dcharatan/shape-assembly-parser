@@ -4,15 +4,14 @@ import SapRangeError from '../error/SapRangeError';
 import SapInteger from './SapInteger';
 
 export default class PositiveInteger extends SapInteger {
-  parse(token: Token): number | SapError {
-    const result = super.parse(token);
-    if (result instanceof SapError || result > 0) {
-      return result;
-    }
-    return new SapRangeError(token, 1, Infinity);
-  }
-
   public get name(): string {
     return 'positive integer';
+  }
+
+  public validate(expressionValue: number, expressionTokens: Token[]): number | SapError {
+    if (expressionValue > 0) {
+      return expressionValue;
+    }
+    return new SapRangeError(expressionTokens, 1, Infinity);
   }
 }

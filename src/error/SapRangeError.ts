@@ -2,8 +2,14 @@ import SapErrorWithToken from './SapErrorWithToken';
 import Token from '../token/Token';
 
 export default class SapRangeError extends SapErrorWithToken {
-  constructor(token: Token, private min: number, private max: number) {
-    super(token);
+  constructor(tokens: Token[], private min: number, private max: number) {
+    super(
+      new Token(
+        tokens.map((token) => token.text).join(' '),
+        tokens.reduce((start, token) => Math.min(token.start, start), Infinity),
+        tokens.reduce((start, token) => Math.max(token.start, start), 0),
+      ),
+    );
   }
 
   public get message(): string {

@@ -4,7 +4,7 @@ import SapType from './SapType';
 import SapTypeError from '../error/SapTypeError';
 
 type AxisEnum = 'X' | 'Y' | 'Z';
-export default class Axis implements SapType<AxisEnum> {
+export default class Axis extends SapType<AxisEnum> {
   public validOperators = new Set<string>();
 
   parse(token: Token): AxisEnum | SapError {
@@ -20,5 +20,9 @@ export default class Axis implements SapType<AxisEnum> {
 
   public evaluate(): AxisEnum {
     throw new Error('no operators supported');
+  }
+
+  public validate(expressionValue: AxisEnum): AxisEnum {
+    return expressionValue;
   }
 }

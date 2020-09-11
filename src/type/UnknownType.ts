@@ -15,4 +15,8 @@ export default class UnknownType implements SapType<unknown> {
   public evaluate(): unknown {
     throw new Error('no operators supported');
   }
+
+  public validate(): never {
+    throw new Error('validation not supported');
+  }
 }

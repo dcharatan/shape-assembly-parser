@@ -4,7 +4,7 @@ import SapType from './SapType';
 import SapTypeError from '../error/SapTypeError';
 import DivisionByZeroError from '../error/DivisionByZeroError';
 
-export default class SapFloat implements SapType<number> {
+export default class SapFloat extends SapType<number> {
   public validOperators = new Set<string>(['*', '/', '+', '-']);
 
   parse(token: Token): number | SapError {

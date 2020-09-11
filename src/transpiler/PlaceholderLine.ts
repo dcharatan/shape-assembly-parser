@@ -6,11 +6,11 @@ type PlaceholderComponent = string | Placeholder;
 export default class PlaceholderLine {
   constructor(private content: PlaceholderComponent[] = [], public readonly invocation?: Invocation) {}
 
-  public add(...components: PlaceholderComponent[]) {
+  public add(...components: PlaceholderComponent[]): void {
     this.content.push(...components);
   }
 
-  public replacePlaceholder(find: Placeholder, replace: PlaceholderComponent) {
+  public replacePlaceholder(find: Placeholder, replace: PlaceholderComponent): void {
     this.content.forEach((entry, index) => {
       if (entry === find) {
         this.content[index] = replace;
@@ -25,7 +25,7 @@ export default class PlaceholderLine {
     return undefined;
   }
 
-  public fillPlaceholders(fill: Map<Placeholder, string>) {
+  public fillPlaceholders(fill: Map<Placeholder, string>): void {
     this.content.forEach((entry, index) => {
       if (entry instanceof Placeholder) {
         this.content[index] = fill.get(entry) ?? 'bbox';
@@ -41,7 +41,7 @@ export default class PlaceholderLine {
     return placeholder;
   }
 
-  public containsPlaceholder(placeholder: Placeholder) {
+  public containsPlaceholder(placeholder: Placeholder): boolean {
     return this.content.some((entry) => entry === placeholder);
   }
 
