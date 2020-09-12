@@ -17,16 +17,6 @@ describe('PositiveFloat Unit Tests', () => {
       expect(positiveFloat.parse(makeToken('5'))).toBe(5);
     });
 
-    test('too small number gives range error', () => {
-      const token = makeToken('-4.3');
-      expect(positiveFloat.parse(token)).toEqual(new SapRangeError(token, 0, Infinity));
-    });
-
-    test('zero gives range error', () => {
-      const token = makeToken('0');
-      expect(positiveFloat.parse(token)).toEqual(new SapRangeError(token, 0, Infinity));
-    });
-
     test('one parsed correctly', () => {
       expect(positiveFloat.parse(makeToken('1'))).toBe(1);
     });
@@ -49,6 +39,18 @@ describe('PositiveFloat Unit Tests', () => {
   describe('name', () => {
     test('name is correct', () => {
       expect(positiveFloat.name).toBe('positive float');
+    });
+  });
+
+  describe('validate', () => {
+    test('too small number gives range error', () => {
+      const tokens = [makeToken('-4.3')];
+      expect(positiveFloat.validate(-4.3, tokens)).toEqual(new SapRangeError(tokens, 0, Infinity));
+    });
+
+    test('zero gives range error', () => {
+      const tokens = [makeToken('0')];
+      expect(positiveFloat.validate(0, tokens)).toEqual(new SapRangeError(tokens, 0, Infinity));
     });
   });
 });

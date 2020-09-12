@@ -13,16 +13,6 @@ describe('UnitFloat Unit Tests', () => {
   });
 
   describe('parse', () => {
-    test('too large number gives range error', () => {
-      const token = makeToken('5');
-      expect(unitFloat.parse(token)).toEqual(new SapRangeError(token, 0, 1));
-    });
-
-    test('too small number gives range error', () => {
-      const token = makeToken('-4.3');
-      expect(unitFloat.parse(token)).toEqual(new SapRangeError(token, 0, 1));
-    });
-
     test('zero parsed correctly', () => {
       expect(unitFloat.parse(makeToken('0'))).toBe(0);
     });
@@ -44,6 +34,18 @@ describe('UnitFloat Unit Tests', () => {
   describe('name', () => {
     test('name is correct', () => {
       expect(unitFloat.name).toBe('unit float');
+    });
+  });
+
+  describe('validate', () => {
+    test('too large number gives range error', () => {
+      const tokens = [makeToken('5')];
+      expect(unitFloat.validate(5, tokens)).toEqual(new SapRangeError(tokens, 0, 1));
+    });
+
+    test('too small number gives range error', () => {
+      const tokens = [makeToken('-4.3')];
+      expect(unitFloat.validate(-4.3, tokens)).toEqual(new SapRangeError(tokens, 0, 1));
     });
   });
 });

@@ -17,16 +17,6 @@ describe('PositiveInteger Unit Tests', () => {
       expect(positiveInteger.parse(makeToken('5'))).toBe(5);
     });
 
-    test('negative integer parsed correctly', () => {
-      const token = makeToken('-4');
-      expect(positiveInteger.parse(token)).toEqual(new SapRangeError(token, 1, Infinity));
-    });
-
-    test('zero parsed correctly', () => {
-      const token = makeToken('0');
-      expect(positiveInteger.parse(token)).toEqual(new SapRangeError(token, 1, Infinity));
-    });
-
     test('floating point input gives error', () => {
       const token = makeToken('4.3');
       expect(positiveInteger.parse(token)).toEqual(new SapTypeError(token, positiveInteger));
@@ -41,6 +31,18 @@ describe('PositiveInteger Unit Tests', () => {
   describe('name', () => {
     test('name is correct', () => {
       expect(positiveInteger.name).toBe('positive integer');
+    });
+  });
+
+  describe('validate', () => {
+    test('negative integer parsed correctly', () => {
+      const tokens = [makeToken('-4')];
+      expect(positiveInteger.validate(-4, tokens)).toEqual(new SapRangeError(tokens, 1, Infinity));
+    });
+
+    test('zero parsed correctly', () => {
+      const tokens = [makeToken('0')];
+      expect(positiveInteger.validate(0, tokens)).toEqual(new SapRangeError(tokens, 1, Infinity));
     });
   });
 });
