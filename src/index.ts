@@ -14,6 +14,7 @@ import PositiveInteger from './type/PositiveInteger';
 import PositiveFloat from './type/PositiveFloat';
 import SapBoolean from './type/SapBoolean';
 export { default as Transpiler } from './transpiler/Transpiler';
+export { default as TranspilerInverse } from './transpilerInverse/TranspilerInverse';
 
 export interface ShapeAssemblyProgram {
   definitions: Definition[];
