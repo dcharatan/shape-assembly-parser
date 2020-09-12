@@ -19,7 +19,7 @@ export default class TranspilerInverse {
       }
 
       // For child assemblies, skip the bbox declaration.
-      else if (line.includes('bbox =') && currentAssemblyIsRoot) {
+      else if (line.includes('bbox =') && !currentAssemblyIsRoot) {
         continue;
       }
 
@@ -37,7 +37,7 @@ export default class TranspilerInverse {
 
       // Handle all other lines.
       else {
-        append(`    ${line.trim().replace('Program_', 'bbox_fn_')}`);
+        append(`    ${line.trim().replace(new RegExp('Program_', 'g'), 'bbox_fn_')}`);
       }
     }
 
