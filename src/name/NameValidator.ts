@@ -16,6 +16,7 @@ export default class NameValidator {
     'bot',
     'front',
     'back',
+    'return',
   ];
 
   public isValidName(name: string): boolean {
