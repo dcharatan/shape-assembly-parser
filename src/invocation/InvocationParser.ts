@@ -68,7 +68,7 @@ export default class InvocationParser {
       parsedAssignment.assignmentToken,
     );
   }
-  
+
   public parseReturn(tokens: Token[]): ReturnStatement | SapError {
     const returnValues: Token[] = [];
     for (const [index, token] of tokens.slice(1).entries()) {
@@ -77,7 +77,7 @@ export default class InvocationParser {
         if (this.nameValidator.isValidName(token.text)) {
           returnValues.push(token);
         } else {
-          return new NameError(token); 
+          return new NameError(token);
         }
       }
 

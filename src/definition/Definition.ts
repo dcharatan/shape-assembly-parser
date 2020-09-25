@@ -1,6 +1,7 @@
 import SapType from '../type/SapType';
 import Invocation from '../invocation/Invocation';
 import Declaration from './Declaration';
+import ReturnStatement from '../invocation/ReturnStatement';
 
 export default class Definition {
   constructor(
@@ -11,5 +12,6 @@ export default class Definition {
     public readonly isRootAssembly: boolean,
     public readonly isChildAssembly: boolean,
     public returnType?: SapType<unknown>,
+    public returnStatement?: ReturnStatement,
   ) {}
 }

@@ -154,6 +154,7 @@ export default class DefinitionParser {
       functionLocalTypes,
       isRootAssembly,
       isChildAssembly,
+      returnStatement,
     );
     return returnValue;
   }
@@ -164,8 +165,18 @@ export default class DefinitionParser {
     typeMap: Map<string, SapType<unknown> | null>,
     isRootAssembly: boolean,
     isChildAssembly: boolean,
+    returnStatement: ReturnStatement | undefined,
   ): Definition {
     const types = declaration.parameterTokens.map((token) => typeMap.get(token.text) ?? new UnknownType());
-    return new Definition(declaration, invocations, types, false, isRootAssembly, isChildAssembly, undefined);
+    return new Definition(
+      declaration,
+      invocations,
+      types,
+      false,
+      isRootAssembly,
+      isChildAssembly,
+      returnStatement ? new BlockType() : undefined,
+      returnStatement,
+    );
   }
 }
