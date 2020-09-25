@@ -111,6 +111,11 @@ export default class DefinitionParser {
           returnValue.errors.push(returnStatement);
           return returnValue;
         }
+        const errors = this.invocationValidator.validateReturnStatement(returnStatement, functionLocalTypes);
+        if (Array.isArray(errors)) {
+          returnValue.errors.push(...errors);
+          return returnValue;
+        }
         continue;
       }
 

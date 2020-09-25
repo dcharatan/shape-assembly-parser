@@ -11,6 +11,10 @@ import NameValidator from '../name/NameValidator';
 import SapTypeError from '../error/SapTypeError';
 import NotDeclaredError from '../error/NotDeclaredError';
 import OperatorMismatchError from '../error/OperatorMismatchError';
+import ReturnStatement from './ReturnStatement';
+import BlockType from '../type/BlockType';
+import ReturnTypeError from '../error/ReturnTypeError';
+import UnexpectedTokenError from '../error/UnexpectedTokenError';
 
 export default class InvocationValidator {
   private nameValidator: NameValidator = new NameValidator();
@@ -95,6 +99,27 @@ export default class InvocationValidator {
       }
     }
     return undefined;
+  }
+
+  public validateReturnStatement(
+    returnStatement: ReturnStatement,
+    functionLocalTypes: Map<string, SapType<unknown> | null>,
+  ): SapError[] | undefined {
+    const errors: SapError[] = [];
+    const seen = new Set<string>();
+    for (const token of returnStatement.tokens) {
+      // Validate the returned block's type.
+      if (!(functionLocalTypes.get(token.text) instanceof BlockType)) {
+        errors.push(new ReturnTypeError(token));
+      }
+
+      // Guard against duplicates.
+      if (seen.has(token.text)) {
+        errors.push(new UnexpectedTokenError(token, 'a cuboid that was not previously returned'));
+      }
+      seen.add(token.text);
+    }
+    return errors.length ? errors : undefined;
   }
 
   private getLeavesAndOperators(node: ExpressionNode): { leaves: ExpressionNode[]; operators: ExpressionNode[] } {

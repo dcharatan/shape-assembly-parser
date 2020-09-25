@@ -82,7 +82,7 @@ export default class InvocationParser {
       }
 
       // Odd indices must be commas.
-      else if (token.text !== ',') {
+      else if (token.text !== ',' || index === tokens.length - 2) {
         return new UnexpectedTokenError(token, 'comma separating return values');
       }
     }
