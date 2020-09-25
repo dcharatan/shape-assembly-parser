@@ -16,6 +16,8 @@ import BlockType from '../type/BlockType';
 import IncompleteDefinitionError from '../error/IncompleteDefinitionError';
 import Token from '../token/Token';
 import InvalidRootAssemblyError from '../error/InvalidRootAssemblyError';
+import ReturnStatement from '../invocation/ReturnStatement';
+import AlreadyReturnedError from '../error/AlreadyReturnedError';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -93,7 +95,25 @@ export default class DefinitionParser {
     }
 
     // Parse the invocations.
+    let returnStatement: ReturnStatement | SapError | undefined = undefined;
     for (const invocationStatement of chunk.slice(1)) {
+      // If there's another statement after a return statement, that's invalid.
+      if (returnStatement) {
+        returnValue.errors.push(new AlreadyReturnedError(invocationStatement.tokens[0]));
+        return returnValue;
+      }
+
+      // Check if the invocation is a return statement.
+      // If so, parse it separately.
+      if (invocationStatement.tokens[0].text === 'return') {
+        returnStatement = this.invocationParser.parseReturn(invocationStatement.tokens);
+        if (returnStatement instanceof SapError) {
+          returnValue.errors.push(returnStatement);
+          return returnValue;
+        }
+        continue;
+      }
+
       // Parse the invocation.
       // Ensure that the invocation statement conforms to the following format:
       // variable = function_name(expression, ...)

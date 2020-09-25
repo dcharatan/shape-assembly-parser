@@ -9,6 +9,7 @@ import UnexpectedTokenError from '../error/UnexpectedTokenError';
 import IncompleteInvocationError from '../error/IncompleteInvocationError';
 import ExpressionParser from '../expression/ExpressionParser';
 import ExpressionNode from '../expression/ExpressionNode';
+import ReturnStatement from './ReturnStatement';
 
 interface AssignmentStructure {
   assignmentToken: Token | undefined;
@@ -66,6 +67,26 @@ export default class InvocationParser {
       argumentExpressions as ExpressionNode[],
       parsedAssignment.assignmentToken,
     );
+  }
+  
+  public parseReturn(tokens: Token[]): ReturnStatement | SapError {
+    const returnValues: Token[] = [];
+    for (const [index, token] of tokens.slice(1).entries()) {
+      // Even indices must be valid names.
+      if (index % 2 === 0) {
+        if (this.nameValidator.isValidName(token.text)) {
+          returnValues.push(token);
+        } else {
+          return new NameError(token); 
+        }
+      }
+
+      // Odd indices must be commas.
+      else if (token.text !== ',') {
+        return new UnexpectedTokenError(token, 'comma separating return values');
+      }
+    }
+    return new ReturnStatement(returnValues);
   }
 
   private parseAssignment(tokens: Token[]): AssignmentStructure | SapError {
