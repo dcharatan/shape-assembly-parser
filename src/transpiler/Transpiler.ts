@@ -16,7 +16,9 @@ interface Argument {
 
 interface TranspileResult {
   text: string;
-  expressions: Map<number, ExpressionNodeJSON[]>;
+  expressions: {
+    [key: number]: ExpressionNodeJSON[],
+  };
 }
 
 export default class Transpiler {
@@ -81,16 +83,13 @@ export default class Transpiler {
 
     // Assemble the returned lines.
     const lines = [];
-    const expressions = new Map<number, ExpressionNodeJSON[]>();
+    const expressions: { [key: number]: ExpressionNodeJSON[] } = {};
     let lineIndex = 0;
     for (const assembly of assemblies) {
       for (const line of assembly) {
         lines.push(line.evaluate());
         if (line.argumentExpressions.length) {
-          expressions.set(
-            lineIndex,
-            line.argumentExpressions.map((expression) => expression.toJSON()),
-          );
+          expressions[lineIndex] = line.argumentExpressions.map((expression) => expression.toJSON());
         }
         lineIndex++;
       }
