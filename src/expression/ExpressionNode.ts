@@ -4,6 +4,17 @@ import SapError from '../error/SapError';
 import NameValidator from '../name/NameValidator';
 import UnexpectedTokenError from '../error/UnexpectedTokenError';
 
+interface TokenJSON {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface ExpressionNodeJSON {
+  token: TokenJSON;
+  children: ExpressionNodeJSON[];
+}
+
 export default class ExpressionNode {
   private static nameValidator = new NameValidator();
   constructor(public readonly token: Token, public readonly children: ExpressionNode[]) {}
@@ -21,5 +32,29 @@ export default class ExpressionNode {
       return variableValues.get(this.token.text) ?? new UnexpectedTokenError(this.token, 'defined variable');
     }
     return as.parse(this.token);
+  }
+
+  public substitute(substitutions: Map<string, ExpressionNode>): ExpressionNode {
+    // Replace this node with a substitution if one exists.
+    const substitution = substitutions.get(this.token.text);
+    if (substitution) {
+      return substitution;
+    }
+
+    // Run substitution on all children.
+    // Don't modify the original expression tree.
+    return new ExpressionNode(
+      this.token,
+      this.children.map((child) => child.substitute(substitutions)),
+    );
+  }
+
+  public toJSON(): ExpressionNodeJSON {
+    const children = this.children.map((child) => child.toJSON());
+    const { text, start, end } = this.token;
+    return {
+      token: { text, start, end },
+      children,
+    };
   }
 }

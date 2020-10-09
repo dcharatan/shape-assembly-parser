@@ -1,5 +1,6 @@
 import { ShapeAssemblyProgram } from '..';
 import Definition from '../definition/Definition';
+import ExpressionNode, { ExpressionNodeJSON } from '../expression/ExpressionNode';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 
@@ -8,19 +9,25 @@ interface InvocationResult {
   appendedAssemblies: PlaceholderLine[][];
 }
 
+interface Argument {
+  evaluated: unknown;
+  expression: ExpressionNode;
+}
+
+interface TranspileResult {
+  text: string;
+  expressions: Map<number, ExpressionNodeJSON[]>;
+}
+
 export default class Transpiler {
-  public transpile(program: ShapeAssemblyProgram): string | undefined {
+  public transpile(program: ShapeAssemblyProgram): TranspileResult | undefined {
     if (program.errors.length) {
       return undefined;
     }
-    try {
-      return this.transpileValidProgram(program);
-    } catch (e) {
-      throw e;
-    }
+    return this.transpileValidProgram(program);
   }
 
-  private transpileValidProgram(program: ShapeAssemblyProgram): string | undefined {
+  private transpileValidProgram(program: ShapeAssemblyProgram): TranspileResult | undefined {
     // Find the root assembly.
     const rootDefinition = program.definitions.find((definition) => definition.isRootAssembly);
     if (!rootDefinition) {
@@ -40,7 +47,7 @@ export default class Transpiler {
     return this.populate(lines);
   }
 
-  private populate(assemblies: PlaceholderLine[][]): string {
+  private populate(assemblies: PlaceholderLine[][]): TranspileResult {
     const placeholderMap = new Map<Placeholder, string>();
 
     // Map assembly placeholders.
@@ -72,12 +79,31 @@ export default class Transpiler {
       });
     });
 
-    return assemblies.map((assembly) => assembly.map((line) => line.evaluate()).join('\n')).join('\n');
+    // Assemble the returned lines.
+    const lines = [];
+    const expressions = new Map<number, ExpressionNodeJSON[]>();
+    let lineIndex = 0;
+    for (const assembly of assemblies) {
+      for (const line of assembly) {
+        lines.push(line.evaluate());
+        if (line.argumentExpressions.length) {
+          expressions.set(
+            lineIndex,
+            line.argumentExpressions.map((expression) => expression.toJSON()),
+          );
+        }
+        lineIndex++;
+      }
+    }
+    return {
+      text: lines.join('\n'),
+      expressions,
+    };
   }
 
   private transpileInvocation(
     definition: Definition,
-    evaluatedArguments: unknown[],
+    invocationArguments: Argument[],
     definitionMap: Map<string, Definition>,
   ): InvocationResult {
     // Built-in functions don't spawn additional lines.
@@ -88,40 +114,55 @@ export default class Transpiler {
     // Map variable names to values.
     // The values are either numeric or placeholders for variables.
     const localValues = new Map<string, unknown>();
+    const localExpressions = new Map<string, ExpressionNode>();
     definition.declaration.parameterTokens.forEach((token, index) => {
-      localValues.set(token.text, evaluatedArguments[index]);
+      const argument = invocationArguments[index];
+      localValues.set(token.text, argument.evaluated);
+      localExpressions.set(token.text, argument.expression);
     });
 
     // Handle the invocations.
     const invocationLines: PlaceholderLine[] = [];
     const appendedLines: PlaceholderLine[][] = [];
     for (const invocation of definition.invocations) {
-      const line = new PlaceholderLine(['    '], invocation);
-
       // Find the corresponding definition.
       const invocationDefinition = definitionMap.get(invocation.definitionToken.text);
       if (!invocationDefinition) {
         throw new Error('Unknown invocation.');
       }
 
-      // Evaluate the arguments.
-      const invocationEvaluatedArguments = invocation.argumentExpressions.map((argumentExpression, index) => {
-        const type = invocationDefinition.argumentTypes[index];
-        const evaluatedArgument = argumentExpression.evaluate(type, localValues);
+      const invocationProcessedArguments = invocation.argumentExpressions.map(
+        (argumentExpression, index): Argument => {
+          // Evaluate the argument.
+          // True and false have to be capitalized to match ShapeAssembly syntax.
+          const type = invocationDefinition.argumentTypes[index];
+          let evaluatedArgument = argumentExpression.evaluate(type, localValues);
+          if (evaluatedArgument === true) {
+            evaluatedArgument = 'True';
+          } else if (evaluatedArgument === false) {
+            evaluatedArgument = 'False';
+          }
 
-        // True and false have to be capitalized to match ShapeAssembly syntax.
-        if (evaluatedArgument === true) {
-          return 'True';
-        } else if (evaluatedArgument === false) {
-          return 'False';
-        }
-        return evaluatedArgument;
-      });
+          // Substitute for the argument.
+          const substitutedArgument = argumentExpression.substitute(localExpressions);
+
+          return {
+            evaluated: evaluatedArgument,
+            expression: substitutedArgument,
+          };
+        },
+      );
+
+      const line = new PlaceholderLine(
+        ['    '],
+        invocationProcessedArguments.map((argument) => argument.expression),
+        invocation,
+      );
 
       // Invoke the function.
       const { inPlace, appendedAssemblies } = this.transpileInvocation(
         invocationDefinition,
-        invocationEvaluatedArguments,
+        invocationProcessedArguments,
         definitionMap,
       );
       appendedLines.push(...appendedAssemblies);
@@ -129,11 +170,14 @@ export default class Transpiler {
       // If inPlace is a placeholder, it's a placeholder for an assembly.
       // This means that there's a bounding box cuboid call that needs to be replaced with the assembly placeholder.
       if (inPlace instanceof Placeholder) {
-        if (invocationEvaluatedArguments.length !== 1 || !(invocationEvaluatedArguments[0] instanceof Placeholder)) {
+        if (
+          invocationProcessedArguments.length !== 1 ||
+          !(invocationProcessedArguments[0].evaluated instanceof Placeholder)
+        ) {
           throw new Error('Unable to replace placeholder.');
         }
         const assemblyPlaceholder = inPlace;
-        const cuboidPlaceholder = invocationEvaluatedArguments[0];
+        const cuboidPlaceholder = invocationProcessedArguments[0].evaluated;
 
         // Find the placeholder in the local value map and replace it.
         for (const [text, placeholder] of Array.from(localValues)) {
@@ -178,9 +222,13 @@ export default class Transpiler {
 
       // Add the rest of the line.
       line.add(invocationDefinition.declaration.nameToken.text, '(');
-      invocationEvaluatedArguments.forEach((evaluatedArgument, index) => {
-        const isLastArgument = index === invocationEvaluatedArguments.length - 1;
-        line.add(evaluatedArgument instanceof Placeholder ? evaluatedArgument : String(evaluatedArgument));
+      invocationProcessedArguments.forEach((processedArguemnt, index) => {
+        const isLastArgument = index === invocationProcessedArguments.length - 1;
+        line.add(
+          processedArguemnt.evaluated instanceof Placeholder
+            ? processedArguemnt.evaluated
+            : String(processedArguemnt.evaluated),
+        );
         if (!isLastArgument) {
           line.add(', ');
         }
@@ -220,8 +268,8 @@ export default class Transpiler {
       // Assemblies don't add lines to the place where they're called.
       // Instead, an assembly's invocations are wrapped in an assembly call.
       const placeholder = new Placeholder(true);
-      invocationLines.unshift(new PlaceholderLine(['Assembly ', placeholder, ' {']));
-      invocationLines.push(new PlaceholderLine(['}']));
+      invocationLines.unshift(new PlaceholderLine(['Assembly ', placeholder, ' {'], []));
+      invocationLines.push(new PlaceholderLine(['}'], []));
       return {
         inPlace: placeholder,
         appendedAssemblies: [[...invocationLines], ...appendedLines],

@@ -1,10 +1,15 @@
 import Placeholder from './Placeholder';
 import Invocation from '../invocation/Invocation';
+import ExpressionNode from '../expression/ExpressionNode';
 
 type PlaceholderComponent = string | Placeholder;
 
 export default class PlaceholderLine {
-  constructor(private content: PlaceholderComponent[] = [], public readonly invocation?: Invocation) {}
+  constructor(
+    private content: PlaceholderComponent[] = [],
+    public argumentExpressions: ExpressionNode[],
+    public readonly invocation?: Invocation,
+  ) {}
 
   public add(...components: PlaceholderComponent[]): void {
     this.content.push(...components);
@@ -46,7 +51,7 @@ export default class PlaceholderLine {
   }
 
   public copy(): PlaceholderLine {
-    return new PlaceholderLine([...this.content]);
+    return new PlaceholderLine([...this.content], this.argumentExpressions);
   }
 
   public evaluate(): string {
