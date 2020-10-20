@@ -15,6 +15,7 @@ import ReturnStatement from './ReturnStatement';
 import BlockType from '../type/BlockType';
 import ReturnTypeError from '../error/ReturnTypeError';
 import UnexpectedTokenError from '../error/UnexpectedTokenError';
+import UnexpectedAssignmentCountError from '../error/UnexpectedAssignmentCountError';
 
 export default class InvocationValidator {
   private nameValidator: NameValidator = new NameValidator();
@@ -33,23 +34,33 @@ export default class InvocationValidator {
     }
 
     // Validate assignment.
-    if (invocation.assignmentToken) {
+    for (const assignmentToken of invocation.assignmentTokens) {
       // Validate that assignment is expected.
       if (!definition.returnType) {
         return new UnexpectedAssignmentError(invocation.definitionToken);
       }
 
       // Check collisions with definition names and function-local variable names.
-      const variableConflict = functionLocalTypes.get(invocation.assignmentToken.text) !== undefined;
+      const variableConflict = functionLocalTypes.get(assignmentToken.text) !== undefined;
       const definitionConflict = existingDefinitions.find(
-        (d) => d.declaration.nameToken.text === invocation.assignmentToken?.text,
+        (d) => d.declaration.nameToken.text === assignmentToken?.text,
       );
       if (variableConflict || definitionConflict) {
-        return new AlreadyDeclaredError(invocation.assignmentToken);
+        return new AlreadyDeclaredError(assignmentToken);
       }
 
       // Add the assignment to the known local types.
-      functionLocalTypes.set(invocation.assignmentToken.text, definition.returnType);
+      functionLocalTypes.set(assignmentToken.text, definition.returnType);
+    }
+
+    // Validate assignment count.
+    // This uses != because so that an undefined return statement is equal to 0.
+    if (invocation.assignmentTokens.length !== (definition.returnStatement?.tokens.length ?? 0)) {
+      return new UnexpectedAssignmentCountError(
+        invocation.definitionToken,
+        definition.returnStatement?.tokens.length ?? 0,
+        invocation.assignmentTokens.length,
+      );
     }
 
     // Validate the argument count.

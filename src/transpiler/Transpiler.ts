@@ -7,6 +7,7 @@ import PlaceholderLine from './PlaceholderLine';
 interface InvocationResult {
   inPlace: PlaceholderLine[] | Placeholder;
   appendedAssemblies: PlaceholderLine[][];
+  returnedPlaceholders: Placeholder[];
 }
 
 interface Argument {
@@ -17,7 +18,7 @@ interface Argument {
 interface TranspileResult {
   text: string;
   expressions: {
-    [key: number]: ExpressionNodeJSON[],
+    [key: number]: ExpressionNodeJSON[];
   };
 }
 
@@ -107,7 +108,7 @@ export default class Transpiler {
   ): InvocationResult {
     // Built-in functions don't spawn additional lines.
     if (definition.isBuiltIn) {
-      return { inPlace: [], appendedAssemblies: [] };
+      return { inPlace: [], appendedAssemblies: [], returnedPlaceholders: [] };
     }
 
     // Map variable names to values.
@@ -159,7 +160,7 @@ export default class Transpiler {
       );
 
       // Invoke the function.
-      const { inPlace, appendedAssemblies } = this.transpileInvocation(
+      const { inPlace, appendedAssemblies, returnedPlaceholders } = this.transpileInvocation(
         invocationDefinition,
         invocationProcessedArguments,
         definitionMap,
@@ -210,13 +211,18 @@ export default class Transpiler {
 
       // Add assignment if necessary.
       let isBoundingBoxLine = false;
-      if (invocation.assignmentToken || invocation.definitionToken.text === 'Cuboid') {
-        const placeholder = invocation.assignmentToken?.text === 'bbox' ? 'bbox' : new Placeholder();
+      if (invocation.definitionToken.text === 'Cuboid') {
+        const placeholder = invocation.assignmentTokens[0].text === 'bbox' ? 'bbox' : new Placeholder();
         isBoundingBoxLine = placeholder === 'bbox';
-        if (invocation.assignmentToken) {
-          localValues.set(invocation.assignmentToken.text, placeholder);
+        if (invocation.assignmentTokens[0]) {
+          localValues.set(invocation.assignmentTokens[0].text, placeholder);
         }
         line.add(placeholder, ' = ');
+      } else if (!definition.isBuiltIn) {
+        // Add assignments for user-defined functions.
+        returnedPlaceholders.forEach((placeholder, index) => {
+          localValues.set(invocation.assignmentTokens[index].text, placeholder);
+        });
       }
 
       // Add the rest of the line.
@@ -253,6 +259,13 @@ export default class Transpiler {
       }
     }
 
+    // Handle assignment.
+    let returnedPlaceholders: Placeholder[] = [];
+    if (!definition.isBuiltIn) {
+      returnedPlaceholders =
+        (definition.returnStatement?.tokens.map((token) => localValues.get(token.text)) as Placeholder[]) ?? [];
+    }
+
     // Decide what to return.
     const isMacro = !definition.isChildAssembly && !definition.isRootAssembly;
     if (isMacro) {
@@ -262,6 +275,7 @@ export default class Transpiler {
       return {
         inPlace: invocationLines,
         appendedAssemblies: appendedLines,
+        returnedPlaceholders,
       };
     } else {
       // Assemblies don't add lines to the place where they're called.
@@ -272,6 +286,7 @@ export default class Transpiler {
       return {
         inPlace: placeholder,
         appendedAssemblies: [[...invocationLines], ...appendedLines],
+        returnedPlaceholders,
       };
     }
   }

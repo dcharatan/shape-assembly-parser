@@ -12,7 +12,7 @@ import ExpressionNode from '../expression/ExpressionNode';
 import ReturnStatement from './ReturnStatement';
 
 interface AssignmentStructure {
-  assignmentToken: Token | undefined;
+  assignmentTokens: Token[];
   invocationTokens: Token[];
 }
 
@@ -37,7 +37,7 @@ export default class InvocationParser {
       return parsedAssignment;
     }
 
-    // Make sure tokens remain.
+    // Make sure tokens remain.name
     if (parsedAssignment.invocationTokens.length === 0) {
       return new IncompleteInvocationError(statement.tokens[1], 'function name');
     }
@@ -65,7 +65,7 @@ export default class InvocationParser {
     return new Invocation(
       parsedDefinition.definitionToken,
       argumentExpressions as ExpressionNode[],
-      parsedAssignment.assignmentToken,
+      parsedAssignment.assignmentTokens,
     );
   }
 
@@ -86,22 +86,45 @@ export default class InvocationParser {
         return new UnexpectedTokenError(token, 'comma separating return values');
       }
     }
-    return new ReturnStatement(returnValues);
+    return new ReturnStatement(returnValues, tokens[0]);
   }
 
   private parseAssignment(tokens: Token[]): AssignmentStructure | SapError {
-    if (tokens.length >= 2 && tokens[1].text === '=') {
-      if (!this.nameValidator.isValidName(tokens[0].text)) {
-        return new NameError(tokens[0]);
-      }
+    // There's no assignment if there are too few tokens or there's no equals sign.
+    const equalsIndex = tokens.findIndex((token) => token.text === '=');
+    if (tokens.length < 2 || equalsIndex === -1) {
       return {
-        assignmentToken: tokens[0],
-        invocationTokens: tokens.slice(2),
+        assignmentTokens: [],
+        invocationTokens: tokens,
       };
     }
+
+    // Parse the tokens before the equals sign.
+    const assignmentTokens = [];
+    for (let tokenIndex = 0; tokenIndex < equalsIndex; tokenIndex++) {
+      const token = tokens[tokenIndex];
+      if (tokenIndex % 2) {
+        // Odd tokens should be commas.
+        if (token.text !== ',') {
+          return new UnexpectedTokenError(token, 'comma');
+        }
+      } else {
+        if (!this.nameValidator.isValidName(tokens[0].text)) {
+          return new NameError(tokens[0]);
+        }
+        assignmentTokens.push(token);
+      }
+    }
+
+    // Make sure the last token isn't a comma.
+    if (equalsIndex % 2 === 0) {
+      return new UnexpectedTokenError(tokens[equalsIndex - 1], 'space between last assignment and equals sign');
+    }
+
+    // Successfully parse the assignment tokens.
     return {
-      assignmentToken: undefined,
-      invocationTokens: tokens,
+      assignmentTokens,
+      invocationTokens: tokens.slice(equalsIndex + 1),
     };
   }
 

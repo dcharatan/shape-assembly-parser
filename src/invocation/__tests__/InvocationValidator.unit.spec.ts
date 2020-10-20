@@ -10,6 +10,7 @@ import PositiveFloat from '../../type/PositiveFloat';
 import BlockType from '../../type/BlockType';
 import SapType from '../../type/SapType';
 import SapBoolean from '../../type/SapBoolean';
+import ReturnStatement from '../ReturnStatement';
 
 const makeToken = (text: string) => new Token(text, 0, 1);
 const makeExpression = (text: string) => new ExpressionNode(makeToken(text), []);
@@ -39,6 +40,7 @@ describe('InvocationValidator Unit Tests', () => {
       false,
       false,
       new BlockType(),
+      new ReturnStatement([makeToken('celery_retval')], makeToken('return')),
     );
     existingDefinition3 = new Definition(
       new Declaration(makeToken('eat_celery'), [makeToken('with_toppings')]),
@@ -53,7 +55,7 @@ describe('InvocationValidator Unit Tests', () => {
 
   describe('validateInvocation', () => {
     test('correct parsing for invocation with single argument', () => {
-      const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5')], undefined);
+      const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5')], []);
       expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeUndefined();
     });
 
@@ -61,14 +63,14 @@ describe('InvocationValidator Unit Tests', () => {
       const invocation = new Invocation(
         makeToken('cook_celery'),
         [makeExpression('5'), makeExpression('5')],
-        makeToken('assignment_var'),
+        [makeToken('assignment_var')],
       );
       expect(validator.validateInvocation(invocation, [existingDefinition2], new Map())).toBeUndefined();
     });
 
     test('correct parsing for invocation with expression tree', () => {
       const expression = new ExpressionNode(makeToken('*'), [makeExpression('5'), makeExpression('5')]);
-      const invocation = new Invocation(makeToken('eat_celery'), [expression], undefined);
+      const invocation = new Invocation(makeToken('eat_celery'), [expression], []);
       expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeUndefined();
     });
 
@@ -78,7 +80,7 @@ describe('InvocationValidator Unit Tests', () => {
       const invocation = new Invocation(
         makeToken('cook_celery'),
         [makeExpression('5'), makeExpression('arg_1')],
-        makeToken('assignment_var'),
+        [makeToken('assignment_var')],
       );
       expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeUndefined();
       expect(functionLocalTypes.get('arg_1')).toBeInstanceOf(PositiveFloat);
@@ -90,7 +92,7 @@ describe('InvocationValidator Unit Tests', () => {
       const invocation = new Invocation(
         makeToken('cook_celery'),
         [makeExpression('5'), makeExpression('arg_1')],
-        makeToken('assignment_var'),
+        [makeToken('assignment_var')],
       );
       expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeUndefined();
       expect(functionLocalTypes.get('arg_1')).toBeInstanceOf(PositiveFloat);
@@ -98,7 +100,7 @@ describe('InvocationValidator Unit Tests', () => {
 
     describe('error checking', () => {
       test('too few arguments', () => {
-        const invocation = new Invocation(makeToken('eat_celery'), [], undefined);
+        const invocation = new Invocation(makeToken('eat_celery'), [], []);
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
@@ -106,18 +108,18 @@ describe('InvocationValidator Unit Tests', () => {
         const invocation = new Invocation(
           makeToken('eat_celery'),
           [makeExpression('5'), makeExpression('5')],
-          undefined,
+          [],
         );
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
       test('undefined function', () => {
-        const invocation = new Invocation(makeToken('yeet_celery'), [makeExpression('5')], undefined);
+        const invocation = new Invocation(makeToken('yeet_celery'), [makeExpression('5')], []);
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
       test('unexpected assignment', () => {
-        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5')], makeToken('assignment_var'));
+        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5')], [makeToken('assignment_var')]);
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
@@ -125,7 +127,7 @@ describe('InvocationValidator Unit Tests', () => {
         const invocation = new Invocation(
           makeToken('cook_celery'),
           [makeExpression('5'), makeExpression('5')],
-          makeToken('eat_celery'),
+          [makeToken('eat_celery')],
         );
         expect(
           validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], new Map()),
@@ -138,7 +140,7 @@ describe('InvocationValidator Unit Tests', () => {
         const invocation = new Invocation(
           makeToken('cook_celery'),
           [makeExpression('5'), makeExpression('5')],
-          makeToken('existing_var'),
+          [makeToken('existing_var')],
         );
         expect(
           validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], functionLocalTypes),
@@ -149,7 +151,7 @@ describe('InvocationValidator Unit Tests', () => {
         const invocation = new Invocation(
           makeToken('cook_celery'),
           [makeExpression('bad_var'), makeExpression('5')],
-          makeToken('assignment_var'),
+          [makeToken('assignment_var')],
         );
         expect(
           validator.validateInvocation(invocation, [existingDefinition, existingDefinition2], new Map()),
@@ -162,7 +164,7 @@ describe('InvocationValidator Unit Tests', () => {
         const invocation = new Invocation(
           makeToken('cook_celery'),
           [makeExpression('5'), makeExpression('arg_1')],
-          makeToken('assignment_var'),
+          [makeToken('assignment_var')],
         );
         expect(validator.validateInvocation(invocation, [existingDefinition2], functionLocalTypes)).toBeInstanceOf(
           SapError,
@@ -170,13 +172,13 @@ describe('InvocationValidator Unit Tests', () => {
       });
 
       test('expression token cannot be parsed', () => {
-        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('True')], undefined);
+        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('True')], []);
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
       test('invalid operator for operands', () => {
         const expression = new ExpressionNode(makeToken('*'), [makeExpression('True'), makeExpression('True')]);
-        const invocation = new Invocation(makeToken('eat_celery'), [expression], undefined);
+        const invocation = new Invocation(makeToken('eat_celery'), [expression], []);
         expect(validator.validateInvocation(invocation, [existingDefinition3], new Map())).toBeInstanceOf(SapError);
       });
     });

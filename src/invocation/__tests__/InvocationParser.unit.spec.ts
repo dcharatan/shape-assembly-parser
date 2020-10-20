@@ -21,7 +21,7 @@ describe('InvocationParser Unit Tests', () => {
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
         argumentExpressions: [],
-        assignmentToken: undefined,
+        assignmentTokens: [],
       });
     });
 
@@ -31,7 +31,7 @@ describe('InvocationParser Unit Tests', () => {
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
         argumentExpressions: [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])],
-        assignmentToken: undefined,
+        assignmentTokens: [],
       });
     });
 
@@ -41,7 +41,7 @@ describe('InvocationParser Unit Tests', () => {
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[2],
         argumentExpressions: [new ExpressionNode(tokens[4], [])],
-        assignmentToken: tokens[0],
+        assignmentTokens: [tokens[0]],
       });
     });
 
@@ -111,7 +111,7 @@ describe('InvocationParser Unit Tests', () => {
       expect(parser.parseInvocation(statement)).toEqual({
         definitionToken: tokens[0],
         argumentExpressions: [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])],
-        assignmentToken: undefined,
+        assignmentTokens: [],
       });
     });
 
@@ -123,7 +123,7 @@ describe('InvocationParser Unit Tests', () => {
         argumentExpressions: [
           new ExpressionNode(tokens[3], [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])]),
         ],
-        assignmentToken: undefined,
+        assignmentTokens: [],
       });
     });
 
@@ -137,7 +137,7 @@ describe('InvocationParser Unit Tests', () => {
           new ExpressionNode(tokens[6], []),
           new ExpressionNode(tokens[9], [new ExpressionNode(tokens[8], []), new ExpressionNode(tokens[10], [])]),
         ],
-        assignmentToken: undefined,
+        assignmentTokens: [],
       });
     });
 
@@ -168,7 +168,7 @@ describe('InvocationParser Unit Tests', () => {
         argumentExpressions: tokens
           .filter((_, i) => i % 2 === 0 && i > 0)
           .map((token) => new ExpressionNode(token, [])),
-        assignmentToken: undefined,
+        assignmentTokens: [],
       });
     });
   });

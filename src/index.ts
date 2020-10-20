@@ -13,6 +13,7 @@ import Axis from './type/Axis';
 import PositiveInteger from './type/PositiveInteger';
 import PositiveFloat from './type/PositiveFloat';
 import SapBoolean from './type/SapBoolean';
+import ReturnStatement from './invocation/ReturnStatement';
 export { default as Transpiler } from './transpiler/Transpiler';
 export { default as TranspilerInverse } from './transpilerInverse/TranspilerInverse';
 
@@ -35,6 +36,7 @@ export default class ShapeAssemblyParser {
       false,
       false,
       returnType,
+      returnType ? new ReturnStatement([new Token('', 0, 0)], new Token('', 0, 0)) : undefined,
     );
   }
 
