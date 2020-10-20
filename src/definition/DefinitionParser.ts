@@ -18,6 +18,7 @@ import Token from '../token/Token';
 import InvalidRootAssemblyError from '../error/InvalidRootAssemblyError';
 import ReturnStatement from '../invocation/ReturnStatement';
 import AlreadyReturnedError from '../error/AlreadyReturnedError';
+import UnexpectedReturnError from '../error/UnexpectedReturnError';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -106,6 +107,10 @@ export default class DefinitionParser {
       // Check if the invocation is a return statement.
       // If so, parse it separately.
       if (invocationStatement.tokens[0].text === 'return') {
+        if (isRootAssembly || isChildAssembly) {
+          returnValue.errors.push(new UnexpectedReturnError(invocationStatement.tokens[0]));
+        }
+
         returnStatement = this.invocationParser.parseReturn(invocationStatement.tokens);
         if (returnStatement instanceof SapError) {
           returnValue.errors.push(returnStatement);
