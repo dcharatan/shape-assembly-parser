@@ -30,10 +30,10 @@ export default class PlaceholderLine {
     return undefined;
   }
 
-  public fillPlaceholders(fill: Map<Placeholder, string>): void {
-    this.content.forEach((entry, index) => {
+  public fillPlaceholders(placeholderToText: Map<Placeholder, string>): void {
+    this.content.forEach((entry) => {
       if (entry instanceof Placeholder) {
-        this.content[index] = fill.get(entry) ?? 'bbox';
+        entry.fill(placeholderToText.get(entry) ?? 'bbox');
       }
     });
   }

@@ -105,11 +105,7 @@ describe('InvocationValidator Unit Tests', () => {
       });
 
       test('too many arguments', () => {
-        const invocation = new Invocation(
-          makeToken('eat_celery'),
-          [makeExpression('5'), makeExpression('5')],
-          [],
-        );
+        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5'), makeExpression('5')], []);
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 
@@ -119,7 +115,11 @@ describe('InvocationValidator Unit Tests', () => {
       });
 
       test('unexpected assignment', () => {
-        const invocation = new Invocation(makeToken('eat_celery'), [makeExpression('5')], [makeToken('assignment_var')]);
+        const invocation = new Invocation(
+          makeToken('eat_celery'),
+          [makeExpression('5')],
+          [makeToken('assignment_var')],
+        );
         expect(validator.validateInvocation(invocation, [existingDefinition], new Map())).toBeInstanceOf(SapError);
       });
 

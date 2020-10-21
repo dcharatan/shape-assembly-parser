@@ -1,14 +1,8 @@
-import Token from '../token/Token';
+import Token, { TokenJSON } from '../token/Token';
 import SapType from '../type/SapType';
 import SapError from '../error/SapError';
 import NameValidator from '../name/NameValidator';
 import UnexpectedTokenError from '../error/UnexpectedTokenError';
-
-interface TokenJSON {
-  start: number;
-  end: number;
-  text: string;
-}
 
 export interface ExpressionNodeJSON {
   token: TokenJSON;
@@ -51,9 +45,8 @@ export default class ExpressionNode {
 
   public toJSON(): ExpressionNodeJSON {
     const children = this.children.map((child) => child.toJSON());
-    const { text, start, end } = this.token;
     return {
-      token: { text, start, end },
+      token: this.token.toJson(),
       children,
     };
   }

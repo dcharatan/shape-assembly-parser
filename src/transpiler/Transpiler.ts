@@ -1,6 +1,7 @@
 import { ShapeAssemblyProgram } from '..';
 import Definition from '../definition/Definition';
 import ExpressionNode, { ExpressionNodeJSON } from '../expression/ExpressionNode';
+import { TokenJSON } from '../token/Token';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 
@@ -15,11 +16,17 @@ interface Argument {
   expression: ExpressionNode;
 }
 
+interface CuboidMetadata {
+  assignmentToken: TokenJSON;
+  transpiledLineIndex: number;
+}
+
 interface TranspileResult {
   text: string;
   expressions: {
     [key: number]: ExpressionNodeJSON[];
   };
+  cuboidMetadata: CuboidMetadata[];
 }
 
 export default class Transpiler {
@@ -83,6 +90,8 @@ export default class Transpiler {
     });
 
     // Assemble the returned lines.
+    const seenPlaceholders = new Set<Placeholder>();
+    const cuboidMetadata: CuboidMetadata[] = [];
     const lines = [];
     const expressions: { [key: number]: ExpressionNodeJSON[] } = {};
     let lineIndex = 0;
@@ -92,12 +101,24 @@ export default class Transpiler {
         if (line.argumentExpressions.length) {
           expressions[lineIndex] = line.argumentExpressions.map((expression) => expression.toJSON());
         }
+
+        // Add the variable metadata.
+        // This assumes that the first line on which a placeholder is seen is the line where it's assigned.
+        const assignment = line.getAssignmentPlaceholder();
+        if (assignment && !seenPlaceholders.has(assignment) && assignment.assignmentToken) {
+          seenPlaceholders.add(assignment);
+          cuboidMetadata.push({
+            assignmentToken: assignment.assignmentToken.toJson(),
+            transpiledLineIndex: lineIndex,
+          });
+        }
         lineIndex++;
       }
     }
     return {
       text: lines.join('\n'),
       expressions,
+      cuboidMetadata,
     };
   }
 
@@ -212,7 +233,10 @@ export default class Transpiler {
       // Add assignment if necessary.
       let isBoundingBoxLine = false;
       if (invocation.definitionToken.text === 'Cuboid') {
-        const placeholder = invocation.assignmentTokens[0].text === 'bbox' ? 'bbox' : new Placeholder();
+        const placeholder =
+          invocation.assignmentTokens[0].text === 'bbox'
+            ? 'bbox'
+            : new Placeholder(false, invocation.assignmentTokens[0]);
         isBoundingBoxLine = placeholder === 'bbox';
         if (invocation.assignmentTokens[0]) {
           localValues.set(invocation.assignmentTokens[0].text, placeholder);

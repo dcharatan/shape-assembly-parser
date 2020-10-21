@@ -1,7 +1,9 @@
+import Token from '../token/Token';
+
 export default class Placeholder {
   private text: string | undefined;
 
-  constructor(public readonly forAssembly: boolean = false) {}
+  constructor(public readonly forAssembly: boolean, public assignmentToken?: Token) {}
 
   public fill(text: string): void {
     this.text = text;
