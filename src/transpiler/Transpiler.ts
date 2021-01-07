@@ -5,6 +5,17 @@ import { TokenJSON } from '../token/Token';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 
+// Warning: The transpiler has been changed to support the new syntax for child assemblies.
+
+// Old:
+// bbox = Cuboid(1, 1, 1, True)
+// child_assembly(bbox)
+
+// New:
+// bbox = child_assembly(1, 1, 1, True)
+
+// This has made the code a lot more confusing. Since the transpiler now has to work around the fact that child assemblies work as if affected by Python decorators (i.e. the arguments and parameters don't seem to match), there are a lot of special cases for child assemblies.
+
 interface InvocationResult {
   inPlace: PlaceholderLine[] | Placeholder;
   appendedAssemblies: PlaceholderLine[][];
@@ -126,6 +137,7 @@ export default class Transpiler {
     definition: Definition,
     invocationArguments: Argument[],
     definitionMap: Map<string, Definition>,
+    childAssemblyParameters?: string[],
   ): InvocationResult {
     // Built-in functions don't spawn additional lines.
     if (definition.isBuiltIn) {
@@ -136,15 +148,29 @@ export default class Transpiler {
     // The values are either numeric or placeholders for variables.
     const localValues = new Map<string, unknown>();
     const localExpressions = new Map<string, ExpressionNode>();
-    definition.declaration.parameterTokens.forEach((token, index) => {
-      const argument = invocationArguments[index];
-      localValues.set(token.text, argument.evaluated);
-      localExpressions.set(token.text, argument.expression);
-    });
 
     // Handle the invocations.
     const invocationLines: PlaceholderLine[] = [];
     const appendedLines: PlaceholderLine[][] = [];
+
+    // Child assemblies come with cuboid arguments instead of bounding boxes, so they're special-cased here.
+    if (definition.isChildAssembly) {
+      // For child assemblies, creating the bounding box line.
+      if (childAssemblyParameters === undefined) {
+        throw Error("No bounding box parameters specified for child assembly.");
+      }
+      localValues.set("bbox", "bbox");
+      const bboxLine = new PlaceholderLine(['    ', 'bbox = Cuboid(', childAssemblyParameters.join(', '), ')'], [], undefined);
+      invocationLines.push(bboxLine);
+    } else {
+      // For everything else, set local values using the parameters.
+      definition.declaration.parameterTokens.forEach((token, index) => {
+        const argument = invocationArguments[index];
+        localValues.set(token.text, argument.evaluated);
+        localExpressions.set(token.text, argument.expression);
+      });
+    }
+
     for (const invocation of definition.invocations) {
       // Find the corresponding definition.
       const invocationDefinition = definitionMap.get(invocation.definitionToken.text);
@@ -152,11 +178,18 @@ export default class Transpiler {
         throw new Error('Unknown invocation.');
       }
 
+      // Child assemblies use argumennt parsing of the cuboid function.
+      const cuboidDefinition = definitionMap.get("Cuboid");
+      if (!cuboidDefinition) {
+        throw Error('Could not find cuboid declaration.');
+      }
+      const adjustedInvocationDefinition = invocationDefinition.isChildAssembly ? cuboidDefinition : invocationDefinition;
+
       const invocationProcessedArguments = invocation.argumentExpressions.map(
         (argumentExpression, index): Argument => {
           // Evaluate the argument.
           // True and false have to be capitalized to match ShapeAssembly syntax.
-          const type = invocationDefinition.argumentTypes[index];
+          const type = adjustedInvocationDefinition.argumentTypes[index];
           let evaluatedArgument = argumentExpression.evaluate(type, localValues);
           if (evaluatedArgument === true) {
             evaluatedArgument = 'True';
@@ -185,48 +218,10 @@ export default class Transpiler {
         invocationDefinition,
         invocationProcessedArguments,
         definitionMap,
+        invocationDefinition.isChildAssembly ? invocationProcessedArguments.map((a) => String(a.evaluated)) : undefined,
       );
       appendedLines.push(...appendedAssemblies);
-
-      // If inPlace is a placeholder, it's a placeholder for an assembly.
-      // This means that there's a bounding box cuboid call that needs to be replaced with the assembly placeholder.
-      if (inPlace instanceof Placeholder) {
-        if (
-          invocationProcessedArguments.length !== 1 ||
-          !(invocationProcessedArguments[0].evaluated instanceof Placeholder)
-        ) {
-          throw new Error('Unable to replace placeholder.');
-        }
-        const assemblyPlaceholder = inPlace;
-        const cuboidPlaceholder = invocationProcessedArguments[0].evaluated;
-
-        // Find the placeholder in the local value map and replace it.
-        for (const [text, placeholder] of Array.from(localValues)) {
-          if (placeholder === cuboidPlaceholder) {
-            // Find the placeholder's declaration.
-            const declarationLine = invocationLines.find((line) => line.containsPlaceholder(cuboidPlaceholder));
-            if (!declarationLine) {
-              throw new Error('Could not find declaration for cuboid.');
-            }
-
-            // Add the placeholder's declaration (the bbox creation line) to the assembly that needs it.
-            for (const appendedAssembly of appendedLines) {
-              if (appendedAssembly[0].containsPlaceholder(assemblyPlaceholder)) {
-                const bboxLine = declarationLine.copy();
-                bboxLine.replacePlaceholder(cuboidPlaceholder, 'bbox');
-                appendedAssembly.splice(1, 0, bboxLine);
-              }
-            }
-
-            // Find all previous placeholder usages.
-            invocationLines.forEach((line) => line.replacePlaceholder(cuboidPlaceholder, assemblyPlaceholder));
-
-            // Replace the placeholder for future usage.
-            localValues.set(text, assemblyPlaceholder);
-            break;
-          }
-        }
-      } else {
+      if (!(inPlace instanceof Placeholder)) {
         invocationLines.push(...inPlace);
       }
 
@@ -242,6 +237,16 @@ export default class Transpiler {
           localValues.set(invocation.assignmentTokens[0].text, placeholder);
         }
         line.add(placeholder, ' = ');
+      } else if (invocationDefinition.isChildAssembly) {
+        if (invocation.assignmentTokens.length !== 1) {
+          throw Error("Unexpected number of assignment tokens.");
+        }
+        if (!(inPlace instanceof Placeholder)) {
+          throw Error("Expected placeholder for assembly name.")
+        }
+        const text = invocation.assignmentTokens[0].text;
+        localValues.set(text, inPlace);
+        line.add(inPlace, ' = ');
       } else if (!definition.isBuiltIn) {
         // Add assignments for user-defined functions.
         returnedPlaceholders.forEach((placeholder, index) => {
@@ -250,13 +255,14 @@ export default class Transpiler {
       }
 
       // Add the rest of the line.
-      line.add(invocationDefinition.declaration.nameToken.text, '(');
-      invocationProcessedArguments.forEach((processedArguemnt, index) => {
+      const functionName = invocationDefinition.isChildAssembly ? "Cuboid" : invocationDefinition.declaration.nameToken.text;
+      line.add(functionName, '(');
+      invocationProcessedArguments.forEach((processedArgument, index) => {
         const isLastArgument = index === invocationProcessedArguments.length - 1;
         line.add(
-          processedArguemnt.evaluated instanceof Placeholder
-            ? processedArguemnt.evaluated
-            : String(processedArguemnt.evaluated),
+          processedArgument.evaluated instanceof Placeholder
+            ? processedArgument.evaluated
+            : String(processedArgument.evaluated),
         );
         if (!isLastArgument) {
           line.add(', ');
@@ -265,15 +271,11 @@ export default class Transpiler {
       line.add(')');
 
       // Decide how to handle the line.
-      // There are two special cases:
-      // 1. Since function calls are expanded into macros, the call itself is hidden.
-      // 2. Child assemblies need to be reconciled with their bounding box's cuboid calls.
       const isMacro =
         !invocationDefinition.isBuiltIn &&
         !invocationDefinition.isChildAssembly &&
         !invocationDefinition.isRootAssembly;
-      if (invocationDefinition.isChildAssembly) {
-      } else if (!isMacro) {
+      if (!isMacro) {
         if (isBoundingBoxLine) {
           // The line that declares the bounding box always goes first.
           invocationLines.unshift(line);
