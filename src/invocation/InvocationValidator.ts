@@ -54,7 +54,6 @@ export default class InvocationValidator {
     }
 
     // Validate assignment count.
-    // This uses != because so that an undefined return statement is equal to 0.
     if (invocation.assignmentTokens.length !== (definition.returnStatement?.tokens.length ?? 0)) {
       return new UnexpectedAssignmentCountError(
         invocation.definitionToken,
