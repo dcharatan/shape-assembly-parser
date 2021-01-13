@@ -28,6 +28,10 @@ export default class TranspilerMetadata {
   // This maps cuboid usage token keys to cuboid assignment tokens.
   public cuboidUsageMap: Map<TokenKey, TokenJSON> = new Map();
 
+  // These combine tokenLineMap and invocationLineMap/invocationDescendantLineMap.
+  public tokenToDirectLines: Map<TokenKey, number[]> = new Map();
+  public tokenToDescendantLines: Map<TokenKey, number[]> = new Map();
+
   public constructor(
     program: ShapeAssemblyProgram,
     assemblies: PlaceholderLine[][],
@@ -38,6 +42,17 @@ export default class TranspilerMetadata {
     this.fillDefinitionContentsMap(program);
     this.fillTokenLineMap(program);
     this.fillCuboidUsageMap(program);
+    this.fillConvenienceMaps();
+  }
+
+  private fillConvenienceMaps() {
+    this.tokenLineMap.forEach((line, tokenKey) => {
+      // Make the arrays if they're not already there.
+      this.tokenToDirectLines.set(tokenKey, this.tokenToDirectLines.get(tokenKey) ?? []);
+      this.tokenToDescendantLines.set(tokenKey, this.tokenToDescendantLines.get(tokenKey) ?? []);
+      this.tokenToDirectLines.get(tokenKey)?.push(...(this.invocationLineMap.get(line) ?? []));
+      this.tokenToDescendantLines.get(tokenKey)?.push(...(this.invocationDescendantLineMap.get(line) ?? []));
+    });
   }
 
   private fillCuboidUsageMap(program: ShapeAssemblyProgram) {
@@ -67,22 +82,7 @@ export default class TranspilerMetadata {
   }
 
   private fillTokenLineMap(program: ShapeAssemblyProgram) {
-    program.definitions.forEach((definition) => {
-      this.tokenLineMap.set(
-        tokenToKey(definition.declaration.nameToken),
-        characterIndexToLineIndex(definition.declaration.nameToken.start, program.lineBreaks),
-      );
-      definition.declaration.parameterTokens.forEach((token) =>
-        this.tokenLineMap.set(tokenToKey(token), characterIndexToLineIndex(token.start, program.lineBreaks)),
-      );
-      definition.invocations.forEach((invocation) => {
-        const lineNumber = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
-        this.tokenLineMap.set(tokenToKey(invocation.definitionToken), lineNumber);
-        invocation.assignmentTokens.forEach((assignmentToken) => {
-          this.tokenLineMap.set(tokenToKey(assignmentToken), lineNumber);
-        });
-      });
-    });
+    program.tokens.forEach((token) => this.tokenLineMap.set(tokenToKey(token), characterIndexToLineIndex(token.start, program.lineBreaks)));
   }
 
   private fillInvocationLineMap(

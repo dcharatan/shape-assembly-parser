@@ -240,27 +240,32 @@ export default class Transpiler {
         descendantLineMap.set(pythonLineIndex, []);
       }
       const descendants = [];
-      for (const appendedAssembly of appendedAssemblies) {
+      appendedAssemblies.forEach((appendedAssembly, index) => {
         if (invocationDefinition.isChildAssembly) {
-          // The bbox, which is the first line, is direct (not descendant).
-          const bbox = appendedAssembly[1];
-          lineMap.get(pythonLineIndex)?.push(bbox);
-          descendants.push(...[appendedAssembly[0], ...appendedAssembly.slice(2)]);
+          if (index === 0) {
+            // The bbox, which is the first line, is direct (not descendant).
+            // This is only for the first appended assembly though (the rest are descendants of that one).
+            const bbox = appendedAssembly[1];
+            lineMap.get(pythonLineIndex)?.push(bbox);
+            descendants.push(...[appendedAssembly[0], ...appendedAssembly.slice(2)]);
 
-          // The bbox should also be given to the declaration line (not just the invocation line) so that highlights for
-          // the bbox argument work.
-          const declarationPythonLine = characterIndexToLineIndex(
-            invocationDefinition.declaration.nameToken.start,
-            program.lineBreaks,
-          );
-          if (!lineMap.has(declarationPythonLine)) {
-            lineMap.set(declarationPythonLine, []);
+            // The bbox should also be given to the declaration line (not just the invocation line) so that highlights for
+            // the bbox argument work.
+            const declarationPythonLine = characterIndexToLineIndex(
+              invocationDefinition.declaration.nameToken.start,
+              program.lineBreaks,
+            );
+            if (!lineMap.has(declarationPythonLine)) {
+              lineMap.set(declarationPythonLine, []);
+            }
+            lineMap.get(declarationPythonLine)?.push(bbox);
+          } else {
+            descendants.push(...appendedAssembly);
           }
-          lineMap.get(declarationPythonLine)?.push(bbox);
         } else {
           descendants.push(...appendedAssembly);
         }
-      }
+      });
       if (Array.isArray(inPlace)) {
         descendants.push(...inPlace);
       }

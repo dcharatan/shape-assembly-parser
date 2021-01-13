@@ -21,6 +21,7 @@ export interface ShapeAssemblyProgram {
   definitions: Definition[];
   errors: SapError[];
   lineBreaks: number[];
+  tokens: Token[];
 }
 
 export default class ShapeAssemblyParser {
@@ -96,6 +97,7 @@ export default class ShapeAssemblyParser {
       definitions: result,
       errors: [...statementErrors, ...definitionErrors],
       lineBreaks: this.getLineBreaks(program),
+      tokens,
     };
   }
 }
