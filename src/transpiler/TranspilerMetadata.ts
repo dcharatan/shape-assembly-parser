@@ -44,7 +44,10 @@ export default class TranspilerMetadata {
     program.definitions.forEach((definition) => {
       const assignmentMap = new Map<string, TokenJSON>();
 
-      // Map tokens to where they were assigned.
+      // Map tokens to where they were assigned (as arguments).
+      definition.declaration.parameterTokens.forEach((token) => assignmentMap.set(token.text, token.toJson()));
+
+      // Map tokens to where they were assigned (via assignment).
       const mapTokens = (expression: ExpressionNode) => {
         const token = assignmentMap.get(expression.token.text);
         if (token) {
@@ -68,6 +71,9 @@ export default class TranspilerMetadata {
       this.tokenLineMap.set(
         tokenToKey(definition.declaration.nameToken),
         characterIndexToLineIndex(definition.declaration.nameToken.start, program.lineBreaks),
+      );
+      definition.declaration.parameterTokens.forEach((token) =>
+        this.tokenLineMap.set(tokenToKey(token), characterIndexToLineIndex(token.start, program.lineBreaks)),
       );
       definition.invocations.forEach((invocation) => {
         const lineNumber = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);

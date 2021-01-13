@@ -243,8 +243,20 @@ export default class Transpiler {
       for (const appendedAssembly of appendedAssemblies) {
         if (invocationDefinition.isChildAssembly) {
           // The bbox, which is the first line, is direct (not descendant).
-          lineMap.get(pythonLineIndex)?.push(appendedAssembly[1]);
+          const bbox = appendedAssembly[1];
+          lineMap.get(pythonLineIndex)?.push(bbox);
           descendants.push(...[appendedAssembly[0], ...appendedAssembly.slice(2)]);
+
+          // The bbox should also be given to the declaration line (not just the invocation line) so that highlights for
+          // the bbox argument work.
+          const declarationPythonLine = characterIndexToLineIndex(
+            invocationDefinition.declaration.nameToken.start,
+            program.lineBreaks,
+          );
+          if (!lineMap.has(declarationPythonLine)) {
+            lineMap.set(declarationPythonLine, []);
+          }
+          lineMap.get(declarationPythonLine)?.push(bbox);
         } else {
           descendants.push(...appendedAssembly);
         }
