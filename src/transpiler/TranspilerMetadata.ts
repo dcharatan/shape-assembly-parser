@@ -1,8 +1,11 @@
 import { ShapeAssemblyProgram } from '..';
 import ExpressionNode from '../expression/ExpressionNode';
-import { TokenJSON } from '../token/Token';
+import Token, { TokenJSON } from '../token/Token';
 import characterIndexToLineIndex from './characterIndexToLineIndex';
 import PlaceholderLine from './PlaceholderLine';
+
+type TokenKey = string;
+const tokenToKey = (token: Token) => `${token.start}/${token.end}`;
 
 export default class TranspilerMetadata {
   // This maps Python line indices to transpiled line indices.
@@ -13,11 +16,11 @@ export default class TranspilerMetadata {
   public definitionContentsMap: Map<number, number[]> = new Map();
 
   // This maps definition name token start indices to Python line numbers.
-  // This also maps cuboid token start indices to Python line numbers.
-  public tokenLineMap: Map<number, number> = new Map();
+  // This also maps cuboid token keys to Python line numbers.
+  public tokenLineMap: Map<TokenKey, number> = new Map();
 
-  // This maps cuboid usage token start indices to cuboid assignment tokens.
-  public cuboidUsageMap: Map<number, TokenJSON> = new Map();
+  // This maps cuboid usage token keys to cuboid assignment tokens.
+  public cuboidUsageMap: Map<TokenKey, TokenJSON> = new Map();
 
   public constructor(program: ShapeAssemblyProgram, assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>) {
     this.fillInvocationLineMap(assemblies, lineMap);
@@ -34,7 +37,7 @@ export default class TranspilerMetadata {
       const mapTokens = (expression: ExpressionNode) => {
         const token = assignmentMap.get(expression.token.text);
         if (token) {
-          this.cuboidUsageMap.set(expression.token.start, token);
+          this.cuboidUsageMap.set(tokenToKey(expression.token), token);
         }
         expression.token.text
         expression.children.forEach(mapTokens);
@@ -50,13 +53,13 @@ export default class TranspilerMetadata {
   private fillTokenLineMap(program: ShapeAssemblyProgram) {
     program.definitions.forEach((definition) => {
       this.tokenLineMap.set(
-        definition.declaration.nameToken.start,
+        tokenToKey(definition.declaration.nameToken),
         characterIndexToLineIndex(definition.declaration.nameToken.start, program.lineBreaks)
       );
       definition.invocations.forEach((invocation) => {
         const lineNumber = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
         invocation.assignmentTokens.forEach((assignmentToken) => {
-          this.tokenLineMap.set(assignmentToken.start, lineNumber);
+          this.tokenLineMap.set(tokenToKey(assignmentToken), lineNumber);
         });
       });
     });
