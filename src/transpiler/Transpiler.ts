@@ -1,9 +1,9 @@
 import { ShapeAssemblyProgram } from '..';
 import Definition from '../definition/Definition';
 import ExpressionNode, { ExpressionNodeJSON } from '../expression/ExpressionNode';
-import { TokenJSON } from '../token/Token';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
+import TranspilerMetadata from './TranspilerMetadata';
 
 // Warning: The transpiler has been changed to support the new syntax for child assemblies.
 
@@ -27,17 +27,12 @@ interface Argument {
   expression: ExpressionNode;
 }
 
-interface CuboidMetadata {
-  assignmentToken: TokenJSON;
-  transpiledLineIndex: number;
-}
-
 interface TranspileResult {
   text: string;
   expressions: {
     [key: number]: ExpressionNodeJSON[];
   };
-  cuboidMetadata: CuboidMetadata[];
+  metadata: TranspilerMetadata;
 }
 
 export default class Transpiler {
@@ -46,6 +41,18 @@ export default class Transpiler {
       return undefined;
     }
     return this.transpileValidProgram(program);
+  }
+
+  private characterIndexToLineIndex(characterIndex: number, lineBreaks: number[]) {
+    let lineIndex = 0;
+    for (const lineBreak of lineBreaks) {
+      if (characterIndex > lineBreak) {
+        lineIndex++;
+      } else {
+        break;
+      }
+    }
+    return lineIndex;
   }
 
   private transpileValidProgram(program: ShapeAssemblyProgram): TranspileResult | undefined {
@@ -62,14 +69,17 @@ export default class Transpiler {
     }
 
     // Get a transpiled version of an invocation of the root assembly's definition (with placeholders).
-    const lines = this.transpileInvocation(rootDefinition, [], definitionMap).appendedAssemblies;
+    // Map Python line numbers to placeholder lines.
+    const lineMap = new Map<number, PlaceholderLine[]>();
+    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, lineMap, program).appendedAssemblies;
 
     // Fill in the placeholders.
-    return this.populate(lines);
+    return this.populate(lines, lineMap);
   }
 
-  private populate(assemblies: PlaceholderLine[][]): TranspileResult {
+  private populate(assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>): TranspileResult {
     const placeholderMap = new Map<Placeholder, string>();
+    const metadata = new TranspilerMetadata();
 
     // Map assembly placeholders.
     assemblies.forEach((assembly, index) => {
@@ -102,7 +112,7 @@ export default class Transpiler {
 
     // Assemble the returned lines.
     const seenPlaceholders = new Set<Placeholder>();
-    const cuboidMetadata: CuboidMetadata[] = [];
+    // const cuboidMetadata: CuboidMetadata[] = []; TODO REMOVE
     const lines = [];
     const expressions: { [key: number]: ExpressionNodeJSON[] } = {};
     let lineIndex = 0;
@@ -118,18 +128,22 @@ export default class Transpiler {
         const assignment = line.getAssignmentPlaceholder();
         if (assignment && !seenPlaceholders.has(assignment) && assignment.assignmentToken) {
           seenPlaceholders.add(assignment);
-          cuboidMetadata.push({
-            assignmentToken: assignment.assignmentToken.toJson(),
-            transpiledLineIndex: lineIndex,
-          });
+          // cuboidMetadata.push({ TODO REMOVE
+          //   assignmentToken: assignment.assignmentToken.toJson(),
+          //   transpiledLineIndex: lineIndex,
+          // });
         }
         lineIndex++;
       }
     }
+
+    // Assemble metadata.
+    metadata.applyLineMap(assemblies, lineMap);
+
     return {
       text: lines.join('\n'),
       expressions,
-      cuboidMetadata,
+      metadata,
     };
   }
 
@@ -137,6 +151,8 @@ export default class Transpiler {
     definition: Definition,
     invocationArguments: Argument[],
     definitionMap: Map<string, Definition>,
+    lineMap: Map<number, PlaceholderLine[]>,
+    program: ShapeAssemblyProgram,
     childAssemblyParameters?: string[],
   ): InvocationResult {
     // Built-in functions don't spawn additional lines.
@@ -218,12 +234,31 @@ export default class Transpiler {
         invocationDefinition,
         invocationProcessedArguments,
         definitionMap,
+        lineMap,
+        program,
         invocationDefinition.isChildAssembly ? invocationProcessedArguments.map((a) => String(a.evaluated)) : undefined,
       );
       appendedLines.push(...appendedAssemblies);
       if (!(inPlace instanceof Placeholder)) {
         invocationLines.push(...inPlace);
       }
+
+      // Map the Python line number to the placeholder lines (for invocations).
+      // This will later allow Python line numbers to be mapped to transpiled line numbers.
+      // Note that this is a one-to-many mapping because Python functions can be reused.
+      const placeholders = [];
+      for (const appendedAssembly of appendedAssemblies) {
+        placeholders.push(...appendedAssembly);
+      }
+      if (Array.isArray(inPlace)) {
+        placeholders.push(...inPlace);
+      }
+      placeholders.push(line);
+      const pythonLineIndex = this.characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
+      if (!lineMap.has(pythonLineIndex)) {
+        lineMap.set(pythonLineIndex, []);
+      }
+      lineMap.get(pythonLineIndex)?.push(...placeholders);
 
       // Add assignment if necessary.
       let isBoundingBoxLine = false;

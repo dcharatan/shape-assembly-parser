@@ -20,6 +20,7 @@ export { default as TranspilerInverse } from './transpilerInverse/TranspilerInve
 export interface ShapeAssemblyProgram {
   definitions: Definition[];
   errors: SapError[];
+  lineBreaks: number[];
 }
 
 export default class ShapeAssemblyParser {
@@ -74,6 +75,16 @@ export default class ShapeAssemblyParser {
     return [attach, squeeze, reflect, translate, cuboid];
   }
 
+  private getLineBreaks(program: string): number[] {
+    const lineBreaks = [];
+    for (let i = 0; i < program.length; i++) {
+      if (program[i] === '\n') {
+        lineBreaks.push(i);
+      }
+    }
+    return lineBreaks;
+  }
+
   public parseShapeAssemblyProgram(program: string): ShapeAssemblyProgram {
     const tokens = this.tokenizer.tokenize(program);
     const { statements, errors: statementErrors } = this.statementParser.parseStatements(tokens);
@@ -84,6 +95,7 @@ export default class ShapeAssemblyParser {
     return {
       definitions: result,
       errors: [...statementErrors, ...definitionErrors],
+      lineBreaks: this.getLineBreaks(program),
     };
   }
 }
