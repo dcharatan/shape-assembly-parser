@@ -9,7 +9,12 @@ const tokenToKey = (token: Token) => `${token.start}/${token.end}`;
 
 export default class TranspilerMetadata {
   // This maps Python line indices to transpiled line indices.
+  // It only maps the line itself, not its descendants.
   public invocationLineMap: Map<number, number[]> = new Map();
+
+  // This maps Python line indices to transpiled descendant line indices.
+  // It does not map the line itself.
+  public invocationDescendantLineMap: Map<number, number[]> = new Map();
 
   // This maps Python definition line indices to Python invocation line indices.
   // In other words, it maps function definition lines to function bodies.
@@ -23,8 +28,13 @@ export default class TranspilerMetadata {
   // This maps cuboid usage token keys to cuboid assignment tokens.
   public cuboidUsageMap: Map<TokenKey, TokenJSON> = new Map();
 
-  public constructor(program: ShapeAssemblyProgram, assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>) {
-    this.fillInvocationLineMap(assemblies, lineMap);
+  public constructor(
+    program: ShapeAssemblyProgram,
+    assemblies: PlaceholderLine[][],
+    lineMap: Map<number, PlaceholderLine[]>,
+    descendantLineMap: Map<number, PlaceholderLine[]>,
+  ) {
+    this.fillInvocationLineMap(assemblies, lineMap, descendantLineMap);
     this.fillDefinitionContentsMap(program);
     this.fillTokenLineMap(program);
     this.fillCuboidUsageMap(program);
@@ -32,7 +42,7 @@ export default class TranspilerMetadata {
 
   private fillCuboidUsageMap(program: ShapeAssemblyProgram) {
     program.definitions.forEach((definition) => {
-      const assignmentMap = new Map<String, TokenJSON>();
+      const assignmentMap = new Map<string, TokenJSON>();
 
       // Map tokens to where they were assigned.
       const mapTokens = (expression: ExpressionNode) => {
@@ -40,12 +50,14 @@ export default class TranspilerMetadata {
         if (token) {
           this.cuboidUsageMap.set(tokenToKey(expression.token), token);
         }
-        expression.token.text
+        expression.token.text;
         expression.children.forEach(mapTokens);
-      }
+      };
 
       definition.invocations.forEach((invocation) => {
-        invocation.assignmentTokens.forEach((assignmentToken) => assignmentMap.set(assignmentToken.text, assignmentToken.toJson()));
+        invocation.assignmentTokens.forEach((assignmentToken) =>
+          assignmentMap.set(assignmentToken.text, assignmentToken.toJson()),
+        );
         invocation.argumentExpressions.forEach(mapTokens);
       });
     });
@@ -55,7 +67,7 @@ export default class TranspilerMetadata {
     program.definitions.forEach((definition) => {
       this.tokenLineMap.set(
         tokenToKey(definition.declaration.nameToken),
-        characterIndexToLineIndex(definition.declaration.nameToken.start, program.lineBreaks)
+        characterIndexToLineIndex(definition.declaration.nameToken.start, program.lineBreaks),
       );
       definition.invocations.forEach((invocation) => {
         const lineNumber = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
@@ -67,7 +79,11 @@ export default class TranspilerMetadata {
     });
   }
 
-  private fillInvocationLineMap(assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>) {
+  private fillInvocationLineMap(
+    assemblies: PlaceholderLine[][],
+    lineMap: Map<number, PlaceholderLine[]>,
+    descendantLineMap: Map<number, PlaceholderLine[]>,
+  ) {
     // Map placeholder lines to their indices.
     let index = 0;
     const lineToIndex = new Map<PlaceholderLine, number>();
@@ -78,22 +94,30 @@ export default class TranspilerMetadata {
       });
     });
 
+    const applyLineMap = (from: Map<number, PlaceholderLine[]>, to: Map<number, number[]>) => {
+      for (const [lineIndex, placeholderLines] of from.entries()) {
+        const transpiledLineIndices: number[] = [];
+        placeholderLines.forEach((line) => {
+          const transpiledIndex = lineToIndex.get(line);
+          if (transpiledIndex) {
+            transpiledLineIndices.push(transpiledIndex);
+          }
+        });
+        to.set(lineIndex, transpiledLineIndices);
+      }
+    };
+
     // Set invocationLineMap by converting lineMap.
-    for (const [lineIndex, placeholderLines] of lineMap.entries()) {
-      const transpiledLineIndices: number[] = [];
-      placeholderLines.forEach((line) => {
-        const transpiledIndex = lineToIndex.get(line);
-        if (transpiledIndex) {
-          transpiledLineIndices.push(transpiledIndex);
-        }
-      });
-      this.invocationLineMap.set(lineIndex, transpiledLineIndices);
-    }
+    applyLineMap(lineMap, this.invocationLineMap);
+    applyLineMap(descendantLineMap, this.invocationDescendantLineMap);
   }
 
   private fillDefinitionContentsMap(program: ShapeAssemblyProgram) {
     program.definitions.forEach((definition) => {
-      const definitionLineNumber = characterIndexToLineIndex(definition.declaration.nameToken.start, program.lineBreaks);
+      const definitionLineNumber = characterIndexToLineIndex(
+        definition.declaration.nameToken.start,
+        program.lineBreaks,
+      );
       definition.invocations.forEach((invocation) => {
         const invocationLineNumber = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
         if (!this.definitionContentsMap.has(definitionLineNumber)) {

@@ -1,4 +1,4 @@
-export default function characterIndexToLineIndex(characterIndex: number, lineBreaks: number[]) {
+export default function characterIndexToLineIndex(characterIndex: number, lineBreaks: number[]): number {
   let lineIndex = 0;
   for (const lineBreak of lineBreaks) {
     if (characterIndex > lineBreak) {

@@ -60,13 +60,20 @@ export default class Transpiler {
     // Get a transpiled version of an invocation of the root assembly's definition (with placeholders).
     // Map Python line numbers to placeholder lines.
     const lineMap = new Map<number, PlaceholderLine[]>();
-    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, lineMap, program).appendedAssemblies;
+    const descendantLineMap = new Map<number, PlaceholderLine[]>();
+    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, lineMap, descendantLineMap, program)
+      .appendedAssemblies;
 
     // Fill in the placeholders.
-    return this.populate(lines, lineMap, program);
+    return this.populate(lines, lineMap, descendantLineMap, program);
   }
 
-  private populate(assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>, program: ShapeAssemblyProgram): TranspileResult {
+  private populate(
+    assemblies: PlaceholderLine[][],
+    lineMap: Map<number, PlaceholderLine[]>,
+    descendantLineMap: Map<number, PlaceholderLine[]>,
+    program: ShapeAssemblyProgram,
+  ): TranspileResult {
     const placeholderMap = new Map<Placeholder, string>();
 
     // Map assembly placeholders.
@@ -114,7 +121,7 @@ export default class Transpiler {
     return {
       text: lines.join('\n'),
       expressions,
-      metadata: new TranspilerMetadata(program, assemblies, lineMap),
+      metadata: new TranspilerMetadata(program, assemblies, lineMap, descendantLineMap),
     };
   }
 
@@ -123,6 +130,7 @@ export default class Transpiler {
     invocationArguments: Argument[],
     definitionMap: Map<string, Definition>,
     lineMap: Map<number, PlaceholderLine[]>,
+    descendantLineMap: Map<number, PlaceholderLine[]>,
     program: ShapeAssemblyProgram,
     childAssemblyParameters?: string[],
   ): InvocationResult {
@@ -144,10 +152,14 @@ export default class Transpiler {
     if (definition.isChildAssembly) {
       // For child assemblies, creating the bounding box line.
       if (childAssemblyParameters === undefined) {
-        throw Error("No bounding box parameters specified for child assembly.");
+        throw Error('No bounding box parameters specified for child assembly.');
       }
-      localValues.set("bbox", "bbox");
-      const bboxLine = new PlaceholderLine(['    ', 'bbox = Cuboid(', childAssemblyParameters.join(', '), ')'], [], undefined);
+      localValues.set('bbox', 'bbox');
+      const bboxLine = new PlaceholderLine(
+        ['    ', 'bbox = Cuboid(', childAssemblyParameters.join(', '), ')'],
+        [],
+        undefined,
+      );
       invocationLines.push(bboxLine);
     } else {
       // For everything else, set local values using the parameters.
@@ -166,11 +178,13 @@ export default class Transpiler {
       }
 
       // Child assemblies use argumennt parsing of the cuboid function.
-      const cuboidDefinition = definitionMap.get("Cuboid");
+      const cuboidDefinition = definitionMap.get('Cuboid');
       if (!cuboidDefinition) {
         throw Error('Could not find cuboid declaration.');
       }
-      const adjustedInvocationDefinition = invocationDefinition.isChildAssembly ? cuboidDefinition : invocationDefinition;
+      const adjustedInvocationDefinition = invocationDefinition.isChildAssembly
+        ? cuboidDefinition
+        : invocationDefinition;
 
       const invocationProcessedArguments = invocation.argumentExpressions.map(
         (argumentExpression, index): Argument => {
@@ -206,6 +220,7 @@ export default class Transpiler {
         invocationProcessedArguments,
         definitionMap,
         lineMap,
+        descendantLineMap,
         program,
         invocationDefinition.isChildAssembly ? invocationProcessedArguments.map((a) => String(a.evaluated)) : undefined,
       );
@@ -217,19 +232,28 @@ export default class Transpiler {
       // Map the Python line number to the placeholder lines (for invocations).
       // This will later allow Python line numbers to be mapped to transpiled line numbers.
       // Note that this is a one-to-many mapping because Python functions can be reused.
-      const placeholders = [];
-      for (const appendedAssembly of appendedAssemblies) {
-        placeholders.push(...appendedAssembly);
-      }
-      if (Array.isArray(inPlace)) {
-        placeholders.push(...inPlace);
-      }
-      placeholders.push(line);
       const pythonLineIndex = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
       if (!lineMap.has(pythonLineIndex)) {
         lineMap.set(pythonLineIndex, []);
       }
-      lineMap.get(pythonLineIndex)?.push(...placeholders);
+      if (!descendantLineMap.has(pythonLineIndex)) {
+        descendantLineMap.set(pythonLineIndex, []);
+      }
+      const descendants = [];
+      for (const appendedAssembly of appendedAssemblies) {
+        if (invocationDefinition.isChildAssembly) {
+          // The bbox, which is the first line, is direct (not descendant).
+          lineMap.get(pythonLineIndex)?.push(appendedAssembly[1]);
+          descendants.push(...[appendedAssembly[0], ...appendedAssembly.slice(2)]);
+        } else {
+          descendants.push(...appendedAssembly);
+        }
+      }
+      if (Array.isArray(inPlace)) {
+        descendants.push(...inPlace);
+      }
+      descendantLineMap.get(pythonLineIndex)?.push(...descendants);
+      lineMap.get(pythonLineIndex)?.push(line);
 
       // Add assignment if necessary.
       let isBoundingBoxLine = false;
@@ -245,10 +269,10 @@ export default class Transpiler {
         line.add(placeholder, ' = ');
       } else if (invocationDefinition.isChildAssembly) {
         if (invocation.assignmentTokens.length !== 1) {
-          throw Error("Unexpected number of assignment tokens.");
+          throw Error('Unexpected number of assignment tokens.');
         }
         if (!(inPlace instanceof Placeholder)) {
-          throw Error("Expected placeholder for assembly name.")
+          throw Error('Expected placeholder for assembly name.');
         }
         const text = invocation.assignmentTokens[0].text;
         localValues.set(text, inPlace);
@@ -261,7 +285,9 @@ export default class Transpiler {
       }
 
       // Add the rest of the line.
-      const functionName = invocationDefinition.isChildAssembly ? "Cuboid" : invocationDefinition.declaration.nameToken.text;
+      const functionName = invocationDefinition.isChildAssembly
+        ? 'Cuboid'
+        : invocationDefinition.declaration.nameToken.text;
       line.add(functionName, '(');
       invocationProcessedArguments.forEach((processedArgument, index) => {
         const isLastArgument = index === invocationProcessedArguments.length - 1;
