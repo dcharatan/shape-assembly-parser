@@ -15,8 +15,9 @@ export default class TranspilerMetadata {
   // In other words, it maps function definition lines to function bodies.
   public definitionContentsMap: Map<number, number[]> = new Map();
 
-  // This maps definition name token start indices to Python line numbers.
+  // This maps definition name token keys to Python line numbers.
   // This also maps cuboid token keys to Python line numbers.
+  // This also maps invocation function name keys to Python line numbers.
   public tokenLineMap: Map<TokenKey, number> = new Map();
 
   // This maps cuboid usage token keys to cuboid assignment tokens.
@@ -58,6 +59,7 @@ export default class TranspilerMetadata {
       );
       definition.invocations.forEach((invocation) => {
         const lineNumber = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
+        this.tokenLineMap.set(tokenToKey(invocation.definitionToken), lineNumber);
         invocation.assignmentTokens.forEach((assignmentToken) => {
           this.tokenLineMap.set(tokenToKey(assignmentToken), lineNumber);
         });
