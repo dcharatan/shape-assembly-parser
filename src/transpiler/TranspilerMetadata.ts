@@ -1,4 +1,5 @@
 import { ShapeAssemblyProgram } from '..';
+import ExpressionNode from '../expression/ExpressionNode';
 import { TokenJSON } from '../token/Token';
 import characterIndexToLineIndex from './characterIndexToLineIndex';
 import PlaceholderLine from './PlaceholderLine';
@@ -16,12 +17,34 @@ export default class TranspilerMetadata {
   public tokenLineMap: Map<number, number> = new Map();
 
   // This maps cuboid usage token start indices to cuboid assignment tokens.
-  public tokenMap: Map<number, TokenJSON> = new Map();
+  public cuboidUsageMap: Map<number, TokenJSON> = new Map();
 
   public constructor(program: ShapeAssemblyProgram, assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>) {
     this.fillInvocationLineMap(assemblies, lineMap);
     this.fillDefinitionContentsMap(program);
     this.fillTokenLineMap(program);
+    this.fillCuboidUsageMap(program);
+  }
+
+  private fillCuboidUsageMap(program: ShapeAssemblyProgram) {
+    program.definitions.forEach((definition) => {
+      const assignmentMap = new Map<String, TokenJSON>();
+
+      // Map tokens to where they were assigned.
+      const mapTokens = (expression: ExpressionNode) => {
+        const token = assignmentMap.get(expression.token.text);
+        if (token) {
+          this.cuboidUsageMap.set(expression.token.start, token);
+        }
+        expression.token.text
+        expression.children.forEach(mapTokens);
+      }
+
+      definition.invocations.forEach((invocation) => {
+        invocation.assignmentTokens.forEach((assignmentToken) => assignmentMap.set(assignmentToken.text, assignmentToken.toJson()));
+        invocation.argumentExpressions.forEach(mapTokens);
+      });
+    });
   }
 
   private fillTokenLineMap(program: ShapeAssemblyProgram) {

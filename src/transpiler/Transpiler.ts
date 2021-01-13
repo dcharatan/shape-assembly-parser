@@ -99,8 +99,6 @@ export default class Transpiler {
     });
 
     // Assemble the returned lines.
-    const seenPlaceholders = new Set<Placeholder>();
-    // const cuboidMetadata: CuboidMetadata[] = []; TODO REMOVE
     const lines = [];
     const expressions: { [key: number]: ExpressionNodeJSON[] } = {};
     let lineIndex = 0;
@@ -109,17 +107,6 @@ export default class Transpiler {
         lines.push(line.evaluate());
         if (line.argumentExpressions.length) {
           expressions[lineIndex] = line.argumentExpressions.map((expression) => expression.toJSON());
-        }
-
-        // Add the variable metadata.
-        // This assumes that the first line on which a placeholder is seen is the line where it's assigned.
-        const assignment = line.getAssignmentPlaceholder();
-        if (assignment && !seenPlaceholders.has(assignment) && assignment.assignmentToken) {
-          seenPlaceholders.add(assignment);
-          // cuboidMetadata.push({ TODO REMOVE
-          //   assignmentToken: assignment.assignmentToken.toJson(),
-          //   transpiledLineIndex: lineIndex,
-          // });
         }
         lineIndex++;
       }
