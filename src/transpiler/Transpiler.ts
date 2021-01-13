@@ -1,6 +1,7 @@
 import { ShapeAssemblyProgram } from '..';
 import Definition from '../definition/Definition';
 import ExpressionNode, { ExpressionNodeJSON } from '../expression/ExpressionNode';
+import characterIndexToLineIndex from './characterIndexToLineIndex';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 import TranspilerMetadata from './TranspilerMetadata';
@@ -43,18 +44,6 @@ export default class Transpiler {
     return this.transpileValidProgram(program);
   }
 
-  private characterIndexToLineIndex(characterIndex: number, lineBreaks: number[]) {
-    let lineIndex = 0;
-    for (const lineBreak of lineBreaks) {
-      if (characterIndex > lineBreak) {
-        lineIndex++;
-      } else {
-        break;
-      }
-    }
-    return lineIndex;
-  }
-
   private transpileValidProgram(program: ShapeAssemblyProgram): TranspileResult | undefined {
     // Find the root assembly.
     const rootDefinition = program.definitions.find((definition) => definition.isRootAssembly);
@@ -74,12 +63,11 @@ export default class Transpiler {
     const lines = this.transpileInvocation(rootDefinition, [], definitionMap, lineMap, program).appendedAssemblies;
 
     // Fill in the placeholders.
-    return this.populate(lines, lineMap);
+    return this.populate(lines, lineMap, program);
   }
 
-  private populate(assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>): TranspileResult {
+  private populate(assemblies: PlaceholderLine[][], lineMap: Map<number, PlaceholderLine[]>, program: ShapeAssemblyProgram): TranspileResult {
     const placeholderMap = new Map<Placeholder, string>();
-    const metadata = new TranspilerMetadata();
 
     // Map assembly placeholders.
     assemblies.forEach((assembly, index) => {
@@ -136,14 +124,10 @@ export default class Transpiler {
         lineIndex++;
       }
     }
-
-    // Assemble metadata.
-    metadata.applyLineMap(assemblies, lineMap);
-
     return {
       text: lines.join('\n'),
       expressions,
-      metadata,
+      metadata: new TranspilerMetadata(program, assemblies, lineMap),
     };
   }
 
@@ -254,7 +238,7 @@ export default class Transpiler {
         placeholders.push(...inPlace);
       }
       placeholders.push(line);
-      const pythonLineIndex = this.characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
+      const pythonLineIndex = characterIndexToLineIndex(invocation.definitionToken.start, program.lineBreaks);
       if (!lineMap.has(pythonLineIndex)) {
         lineMap.set(pythonLineIndex, []);
       }
