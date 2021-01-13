@@ -1,6 +1,6 @@
 {
   "name": "@dcharatan/shape-assembly-parser",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "A parser for ShapeAssembly.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
