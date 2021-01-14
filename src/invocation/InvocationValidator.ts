@@ -115,6 +115,7 @@ export default class InvocationValidator {
         }
       }
     }
+    invocation.argumentTypes = definition.argumentTypes;
     return undefined;
   }
 
