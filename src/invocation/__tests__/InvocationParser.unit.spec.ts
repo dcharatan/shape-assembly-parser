@@ -22,6 +22,7 @@ describe('InvocationParser Unit Tests', () => {
         definitionToken: tokens[0],
         argumentExpressions: [],
         assignmentTokens: [],
+        argumentTypes: [],
       });
     });
 
@@ -32,6 +33,7 @@ describe('InvocationParser Unit Tests', () => {
         definitionToken: tokens[0],
         argumentExpressions: [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])],
         assignmentTokens: [],
+        argumentTypes: [],
       });
     });
 
@@ -42,6 +44,7 @@ describe('InvocationParser Unit Tests', () => {
         definitionToken: tokens[2],
         argumentExpressions: [new ExpressionNode(tokens[4], [])],
         assignmentTokens: [tokens[0]],
+        argumentTypes: [],
       });
     });
 
@@ -112,6 +115,7 @@ describe('InvocationParser Unit Tests', () => {
         definitionToken: tokens[0],
         argumentExpressions: [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])],
         assignmentTokens: [],
+        argumentTypes: [],
       });
     });
 
@@ -124,6 +128,7 @@ describe('InvocationParser Unit Tests', () => {
           new ExpressionNode(tokens[3], [new ExpressionNode(tokens[2], []), new ExpressionNode(tokens[4], [])]),
         ],
         assignmentTokens: [],
+        argumentTypes: [],
       });
     });
 
@@ -138,6 +143,7 @@ describe('InvocationParser Unit Tests', () => {
           new ExpressionNode(tokens[9], [new ExpressionNode(tokens[8], []), new ExpressionNode(tokens[10], [])]),
         ],
         assignmentTokens: [],
+        argumentTypes: [],
       });
     });
 
@@ -169,6 +175,7 @@ describe('InvocationParser Unit Tests', () => {
           .filter((_, i) => i % 2 === 0 && i > 0)
           .map((token) => new ExpressionNode(token, [])),
         assignmentTokens: [],
+        argumentTypes: [],
       });
     });
   });

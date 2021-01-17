@@ -33,17 +33,10 @@ export default class InvocationValidator {
       return new InvocationError(invocation.definitionToken);
     }
 
-    // Replace the definition the cuboid's for child assemblies.
-    const cuboidDeclaration = existingDefinitions.find((d) => d.declaration.nameToken.text === 'Cuboid');
-    if (!cuboidDeclaration) {
-      throw Error('Could not find cuboid declaration.');
-    }
-    const adjustedDefinition = definition.isChildAssembly ? cuboidDeclaration : definition;
-
     // Validate assignment.
     for (const assignmentToken of invocation.assignmentTokens) {
       // Validate that assignment is expected.
-      if (!adjustedDefinition.returnType) {
+      if (!definition.returnType) {
         return new UnexpectedAssignmentError(invocation.definitionToken);
       }
 
@@ -57,23 +50,23 @@ export default class InvocationValidator {
       }
 
       // Add the assignment to the known local types.
-      functionLocalTypes.set(assignmentToken.text, adjustedDefinition.returnType);
+      functionLocalTypes.set(assignmentToken.text, definition.returnType);
     }
 
     // Validate assignment count.
-    if (invocation.assignmentTokens.length !== (adjustedDefinition.returnStatement?.tokens.length ?? 0)) {
+    if (invocation.assignmentTokens.length !== (definition.returnStatement?.tokens.length ?? 0)) {
       return new UnexpectedAssignmentCountError(
         invocation.definitionToken,
-        adjustedDefinition.returnStatement?.tokens.length ?? 0,
+        definition.returnStatement?.tokens.length ?? 0,
         invocation.assignmentTokens.length,
       );
     }
 
     // Validate the argument count.
-    if (adjustedDefinition.argumentTypes.length !== invocation.argumentExpressions.length) {
+    if (definition.argumentTypes.length !== invocation.argumentExpressions.length) {
       return new ArgumentMismatchError(
         invocation.definitionToken,
-        adjustedDefinition.argumentTypes.length,
+        definition.argumentTypes.length,
         invocation.argumentExpressions.length,
       );
     }
@@ -81,7 +74,7 @@ export default class InvocationValidator {
     // Validate the arguments.
     for (let i = 0; i < invocation.argumentExpressions.length; i++) {
       const { leaves, operators } = this.getLeavesAndOperators(invocation.argumentExpressions[i]);
-      const expectedType = adjustedDefinition.argumentTypes[i];
+      const expectedType = definition.argumentTypes[i];
 
       for (const leaf of leaves) {
         // Check if the leaf is a variable.

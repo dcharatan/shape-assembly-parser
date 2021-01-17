@@ -26,7 +26,8 @@ export default class TranspilerInverse {
       // Handle subassembly invocations.
       else if (line.includes('Program_') && line.includes('=')) {
         const assemblyNumber = Number.parseInt(line.slice(line.indexOf('Program_') + 'Program_'.length));
-        append(`    bbox_fn_${assemblyNumber} = assembly_fn_${assemblyNumber}${line.slice(line.indexOf('('))}`);
+        append(`    bbox_fn_${assemblyNumber} ${line.slice(line.indexOf('='))}`);
+        append(`    assembly_fn_${assemblyNumber}(bbox_fn_${assemblyNumber})`);
       }
 
       // Skip closing parentheses.
