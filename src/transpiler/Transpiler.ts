@@ -15,6 +15,11 @@ interface InvocationResult {
 
   // Each returned cuboid is associated with placeholder lines.
   returnedPlaceholderLines: PlaceholderLine[][];
+
+  // This contains the placeholder lines for all cuboids a function call creates.
+  // It includes both cuboids from the cuboid command and clones from reflect and translate.
+  // In other words, this is broader than just the returned cuboids.
+  createdPlaceholderLines: PlaceholderLine[];
 }
 
 interface Argument {
@@ -78,13 +83,18 @@ export default class Transpiler {
     const lineAlias = new Map<PlaceholderLine, PlaceholderLine>();
 
     // Get a transpiled version of an invocation of the root assembly's definition (with placeholders).
-    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, megaMap, lineAlias, program).appendedAssemblies;
+    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, megaMap, lineAlias, program)
+      .appendedAssemblies;
 
     // Fill in the placeholders.
     return this.populate(lines, megaMap, lineAlias);
   }
 
-  private convertMegaMap(megaMap: MegaMap, assemblies: PlaceholderLine[][], lineAlias: LineAlias): Map<string, number[]> {
+  private convertMegaMap(
+    megaMap: MegaMap,
+    assemblies: PlaceholderLine[][],
+    lineAlias: LineAlias,
+  ): Map<string, number[]> {
     // Map PlaceholderLine to number.
     const placeholderToLineIndex = new Map<PlaceholderLine, number>();
     let lineIndex = 0;
@@ -102,7 +112,7 @@ export default class Transpiler {
       const addToLineIndices = (placeholderLine: PlaceholderLine) => {
         const lineIndex = placeholderToLineIndex.get(placeholderLine);
         if (lineIndex === undefined) {
-          throw new Error("Could not find line index for placeholder line.");
+          throw new Error('Could not find line index for placeholder line.');
         }
         lineIndices.push(lineIndex);
       };
@@ -122,11 +132,7 @@ export default class Transpiler {
     return converted;
   }
 
-  private populate(
-    assemblies: PlaceholderLine[][],
-    megaMap: MegaMap,
-    lineAlias: LineAlias,
-  ): TranspileResult {
+  private populate(assemblies: PlaceholderLine[][], megaMap: MegaMap, lineAlias: LineAlias): TranspileResult {
     const placeholderMap = new Map<Placeholder, string>();
 
     // Map assembly placeholders.
@@ -190,15 +196,23 @@ export default class Transpiler {
     if (definition.isBuiltIn) {
       // User-defined functions will return all of their transpiled lines here.
       // However, built-in functions don't, since a PlaceholderLine is created for them by the caller.
-      return { inPlace: [], appendedAssemblies: [], returnedPlaceholders: [], returnedPlaceholderLines: [] };
+      return {
+        inPlace: [],
+        appendedAssemblies: [],
+        returnedPlaceholders: [],
+        returnedPlaceholderLines: [],
+        createdPlaceholderLines: [],
+      };
     }
+    const createdPlaceholderLines: PlaceholderLine[] = [];
 
     // Map variable names to values.
     // The values are either numeric or placeholders for variables.
     const localValues = new Map<string, unknown>();
     const localExpressions = new Map<string, ExpressionNode>();
     const localPlaceholderLines = new Map<string, PlaceholderLine[]>();
-    const mapLocalValueToPlaceholderLines = (token: Token, lines: PlaceholderLine[]) => localPlaceholderLines.set(token.text, lines);
+    const mapLocalValueToPlaceholderLines = (token: Token, lines: PlaceholderLine[]) =>
+      localPlaceholderLines.set(token.text, lines);
 
     definition.declaration.parameterTokens.forEach((token, index) => {
       const argument = invocationArguments[index];
@@ -252,7 +266,7 @@ export default class Transpiler {
           if (invocation.argumentTypes[index] instanceof BlockType) {
             placeholderLines = localPlaceholderLines.get(argumentExpression.token.text);
             if (!placeholderLines) {
-              throw new Error("Could not find transpiled lines for cuboid function argument.");
+              throw new Error('Could not find transpiled lines for cuboid function argument.');
             }
             this.extendMegaMap(megaMap, argumentExpression.token, placeholderLines);
           }
@@ -272,7 +286,13 @@ export default class Transpiler {
       );
 
       // Invoke the function.
-      const { inPlace, appendedAssemblies, returnedPlaceholders, returnedPlaceholderLines } = this.transpileInvocation(
+      const {
+        inPlace,
+        appendedAssemblies,
+        returnedPlaceholders,
+        returnedPlaceholderLines,
+        createdPlaceholderLines: returnedCreatedPlaceholderLines,
+      } = this.transpileInvocation(
         invocationDefinition,
         invocationProcessedArguments,
         definitionMap,
@@ -281,6 +301,17 @@ export default class Transpiler {
         program,
       );
       appendedLines.push(...appendedAssemblies);
+      createdPlaceholderLines.push(...returnedCreatedPlaceholderLines);
+
+      // Manage megaMap mapping to subassemblies and functions/abstractions.
+      // First, ensure that createdPlaceholderLines is updated.
+      if (["Cuboid", "reflect", "translate"].includes(invocation.definitionToken.text)) {
+        createdPlaceholderLines.push(line);
+      }
+      // Next, update the megaMap.
+      if (!invocationDefinition.isBuiltIn && !invocationDefinition.isRootAssembly) {
+        this.extendMegaMap(megaMap, invocation.definitionToken, returnedCreatedPlaceholderLines);
+      }
 
       // If inPlace is a placeholder, it's a placeholder for an assembly.
       // This means that there's a bounding box cuboid call that needs to be replaced with the assembly placeholder.
@@ -334,10 +365,7 @@ export default class Transpiler {
       let isBoundingBoxLine = false;
       if (invocation.definitionToken.text === 'Cuboid') {
         const assignmentToken = invocation.assignmentTokens[0];
-        const placeholder =
-          assignmentToken.text === 'bbox'
-            ? 'bbox'
-            : new Placeholder(false, assignmentToken);
+        const placeholder = assignmentToken.text === 'bbox' ? 'bbox' : new Placeholder(false, assignmentToken);
         isBoundingBoxLine = placeholder === 'bbox';
         if (assignmentToken) {
           localValues.set(assignmentToken.text, placeholder);
@@ -414,7 +442,7 @@ export default class Transpiler {
       for (const returnedToken of definition.returnStatement?.tokens ?? []) {
         const returnedPlaceholderLinesForToken = localPlaceholderLines.get(returnedToken.text);
         if (!returnedPlaceholderLinesForToken) {
-          throw new Error("Could not find placeholder lines for return token.");
+          throw new Error('Could not find placeholder lines for return token.');
         }
         this.extendMegaMap(megaMap, returnedToken, returnedPlaceholderLinesForToken);
         returnedPlaceholderLines.push(returnedPlaceholderLinesForToken);
@@ -424,6 +452,7 @@ export default class Transpiler {
         appendedAssemblies: appendedLines,
         returnedPlaceholders,
         returnedPlaceholderLines,
+        createdPlaceholderLines,
       };
     } else {
       // Assemblies don't add lines to the place where they're called.
@@ -436,8 +465,10 @@ export default class Transpiler {
         appendedAssemblies: [[...invocationLines], ...appendedLines],
         returnedPlaceholders,
 
-        // Subassemblies don't return any cuboids.
+        // Subassemblies don't return any cuboids, but they can still return created placeholder lines.
+        // See the description of each of these for more details.
         returnedPlaceholderLines: [],
+        createdPlaceholderLines,
       };
     }
   }
