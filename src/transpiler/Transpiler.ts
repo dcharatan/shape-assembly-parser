@@ -6,15 +6,15 @@ import BlockType from '../type/BlockType';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 
-type HighlightVariant = "primary" | "secondary"
+type HighlightVariant = 'primary' | 'secondary';
 type Highlight = {
   placeholderLine: PlaceholderLine;
   variant: HighlightVariant;
 };
 type LineHighlight = {
-  line: number,
+  line: number;
   variant: HighlightVariant;
-}
+};
 type MegaMap = Map<string, Highlight[]>;
 type LineAlias = Map<PlaceholderLine, PlaceholderLine>;
 
@@ -243,7 +243,7 @@ export default class Transpiler {
       // The value of transpiledLines is non-undefined when the parameter is a cuboid.
       const placeholderLines = invocationArguments[index].placeholderLines;
       if (placeholderLines) {
-        this.extendMegaMap(megaMap, token, this.makeHighlight(placeholderLines, "primary"));
+        this.extendMegaMap(megaMap, token, this.makeHighlight(placeholderLines, 'primary'));
         mapLocalValueToPlaceholderLines(token, placeholderLines);
       }
     });
@@ -288,7 +288,7 @@ export default class Transpiler {
             if (!placeholderLines) {
               throw new Error('Could not find transpiled lines for cuboid function argument.');
             }
-            this.extendMegaMap(megaMap, argumentExpression.token, this.makeHighlight(placeholderLines, "primary"));
+            this.extendMegaMap(megaMap, argumentExpression.token, this.makeHighlight(placeholderLines, 'primary'));
           }
 
           return {
@@ -325,12 +325,43 @@ export default class Transpiler {
 
       // Manage megaMap mapping to subassemblies and functions/abstractions.
       // First, ensure that createdPlaceholderLines is updated.
-      if (["Cuboid", "reflect", "translate"].includes(invocation.definitionToken.text)) {
+      if (['Cuboid', 'reflect', 'translate'].includes(invocation.definitionToken.text)) {
         createdPlaceholderLines.push(line);
       }
       // Next, update the megaMap.
       if (!invocationDefinition.isBuiltIn && !invocationDefinition.isRootAssembly) {
-        this.extendMegaMap(megaMap, invocation.definitionToken, this.makeHighlight(returnedCreatedPlaceholderLines, "primary"));
+        this.extendMegaMap(
+          megaMap,
+          invocation.definitionToken,
+          this.makeHighlight(returnedCreatedPlaceholderLines, 'primary'),
+        );
+      }
+
+      // Manage megaMap mappings for attach, squeeze, reflect and translate.
+      if (invocationDefinition.isBuiltIn) {
+        const functionNameToken = invocation.definitionToken;
+        const functionName = functionNameToken.text;
+        const argumentTokens = invocation.argumentExpressions.map((expression) => expression.token);
+        const lines = argumentTokens.map((token) => localPlaceholderLines.get(token.text));
+        if (functionName === 'attach') {
+          if (!lines[0] || !lines[1]) {
+            throw new Error('Could not find placeholder lines for attach arguments.');
+          }
+          this.extendMegaMap(megaMap, functionNameToken, this.makeHighlight(lines[0], 'primary'));
+          this.extendMegaMap(megaMap, functionNameToken, this.makeHighlight(lines[1], 'secondary'));
+        } else if (functionName === 'squeeze') {
+          if (!lines[0] || !lines[1] || !lines[2]) {
+            throw new Error('Could not find placeholder lines for squeeze arguments.');
+          }
+          this.extendMegaMap(megaMap, functionNameToken, this.makeHighlight(lines[0], 'primary'));
+          this.extendMegaMap(megaMap, functionNameToken, this.makeHighlight([...lines[1], ...lines[2]], 'secondary'));
+        } else if (functionName === 'translate' || functionName === 'reflect') {
+          if (!lines[0]) {
+            throw new Error(`Could not find placeholder lines for ${functionName} arguments.`);
+          }
+          this.extendMegaMap(megaMap, functionNameToken, this.makeHighlight(lines[0], 'primary'));
+          this.extendMegaMap(megaMap, functionNameToken, this.makeHighlight([line], 'secondary'));
+        }
       }
 
       // If inPlace is a placeholder, it's a placeholder for an assembly.
@@ -393,18 +424,18 @@ export default class Transpiler {
         line.add(placeholder, ' = ');
 
         // Add to the megaMap for the assignment token itself.
-        this.extendMegaMap(megaMap, assignmentToken, this.makeHighlight([line], "primary"));
+        this.extendMegaMap(megaMap, assignmentToken, this.makeHighlight([line], 'primary'));
         mapLocalValueToPlaceholderLines(assignmentToken, [line]);
 
         // Add to the megaMap for the function name.
-        this.extendMegaMap(megaMap, invocation.definitionToken, this.makeHighlight([line], "primary"));
+        this.extendMegaMap(megaMap, invocation.definitionToken, this.makeHighlight([line], 'primary'));
       } else if (!definition.isBuiltIn) {
         // Add assignments for user-defined functions.
         returnedPlaceholders.forEach((placeholder, index) => {
           const assignmentToken = invocation.assignmentTokens[index];
           const assignmentPlaceholders = returnedPlaceholderLines[index];
           localValues.set(assignmentToken.text, placeholder);
-          this.extendMegaMap(megaMap, assignmentToken, this.makeHighlight(assignmentPlaceholders, "primary"));
+          this.extendMegaMap(megaMap, assignmentToken, this.makeHighlight(assignmentPlaceholders, 'primary'));
           mapLocalValueToPlaceholderLines(assignmentToken, assignmentPlaceholders);
         });
       }
@@ -464,7 +495,7 @@ export default class Transpiler {
         if (!returnedPlaceholderLinesForToken) {
           throw new Error('Could not find placeholder lines for return token.');
         }
-        this.extendMegaMap(megaMap, returnedToken, this.makeHighlight(returnedPlaceholderLinesForToken, "primary"));
+        this.extendMegaMap(megaMap, returnedToken, this.makeHighlight(returnedPlaceholderLinesForToken, 'primary'));
         returnedPlaceholderLines.push(returnedPlaceholderLinesForToken);
       }
       return {
