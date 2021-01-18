@@ -4,6 +4,8 @@ import Declaration from './Declaration';
 import ReturnStatement from '../invocation/ReturnStatement';
 
 export default class Definition {
+  public isFromPrefix: boolean = false;
+
   constructor(
     public declaration: Declaration,
     public invocations: Invocation[],

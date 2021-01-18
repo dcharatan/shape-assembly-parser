@@ -85,16 +85,34 @@ export default class ShapeAssemblyParser {
     return lineBreaks;
   }
 
-  public parseShapeAssemblyProgram(program: string): ShapeAssemblyProgram {
+  public parseShapeAssemblyProgram(program: string, prefix?: string): ShapeAssemblyProgram {
+    // Augment the standard definitions with additional prefix definitions.
+    const prefixErrors: SapError[] = [];
+    let definitions = this.makeStandardDefinitions();
+    if (prefix) {
+      const tokens = this.tokenizer.tokenize(prefix);
+      const { statements, errors: statementErrors } = this.statementParser.parseStatements(tokens);
+      const { result, errors: definitionErrors } = this.definitionParser.parseDefinitions(
+        definitions,
+        statements,
+      );
+      prefixErrors.push(...statementErrors);
+      prefixErrors.push(...definitionErrors);
+      definitions.forEach((definition) => {
+        definition.isFromPrefix = true;
+      });
+      definitions = result;
+    }
+
     const tokens = this.tokenizer.tokenize(program);
     const { statements, errors: statementErrors } = this.statementParser.parseStatements(tokens);
     const { result, errors: definitionErrors } = this.definitionParser.parseDefinitions(
-      this.makeStandardDefinitions(),
+      definitions,
       statements,
     );
     return {
       definitions: result,
-      errors: [...statementErrors, ...definitionErrors],
+      errors: [...statementErrors, ...definitionErrors, ...prefixErrors],
       lineBreaks: this.getLineBreaks(program),
       tokens,
     };
