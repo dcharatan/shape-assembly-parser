@@ -7,6 +7,7 @@ import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 
 type MegaMap = Map<string, PlaceholderLine[]>;
+type LineAlias = Map<PlaceholderLine, PlaceholderLine>;
 interface InvocationResult {
   inPlace: PlaceholderLine[] | Placeholder;
   appendedAssemblies: PlaceholderLine[][];
@@ -67,14 +68,23 @@ export default class Transpiler {
     // The keys are token keys, i.e. `${token.start}/${token.end}`
     const megaMap = new Map<string, PlaceholderLine[]>();
 
+    // This aliasing is needed for bounding box highlights to work properly.
+    // When Python ShapeAssembly is transpiled, it first sees a subassembly's bounding box cuboid.
+    // This cuboid line placeholder is eventually moved to inside the subassembly.
+    // However, the server creates the bbox cuboid from the line that's outside the subassembly (the call).
+    // This call line placeholder is a modified copy of the original that's created after the call.
+    // Thus, at calling time, there's no valid placeholder that represents the bbox parameter.
+    // This is why aliasing is applied after the fact to fix up the megaMap.
+    const lineAlias = new Map<PlaceholderLine, PlaceholderLine>();
+
     // Get a transpiled version of an invocation of the root assembly's definition (with placeholders).
-    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, megaMap, program).appendedAssemblies;
+    const lines = this.transpileInvocation(rootDefinition, [], definitionMap, megaMap, lineAlias, program).appendedAssemblies;
 
     // Fill in the placeholders.
-    return this.populate(lines, megaMap);
+    return this.populate(lines, megaMap, lineAlias);
   }
 
-  private convertMegaMap(megaMap: MegaMap, assemblies: PlaceholderLine[][]): Map<string, number[]> {
+  private convertMegaMap(megaMap: MegaMap, assemblies: PlaceholderLine[][], lineAlias: LineAlias): Map<string, number[]> {
     // Map PlaceholderLine to number.
     const placeholderToLineIndex = new Map<PlaceholderLine, number>();
     let lineIndex = 0;
@@ -88,13 +98,26 @@ export default class Transpiler {
     // Convert the megaMap.
     const converted = new Map<string, number[]>();
     megaMap.forEach((placeholderLines, key) => {
-      converted.set(key, placeholderLines.map((placeholderLine) => {
+      const lineIndices: number[] = [];
+      const addToLineIndices = (placeholderLine: PlaceholderLine) => {
         const lineIndex = placeholderToLineIndex.get(placeholderLine);
         if (lineIndex === undefined) {
           throw new Error("Could not find line index for placeholder line.");
         }
-        return lineIndex;
-      }));
+        lineIndices.push(lineIndex);
+      };
+
+      placeholderLines.forEach((placeholderLine) => {
+        // Add the original line index.
+        addToLineIndices(placeholderLine);
+
+        // Add an alias if it exists.
+        const alias = lineAlias.get(placeholderLine);
+        if (alias) {
+          addToLineIndices(alias);
+        }
+      });
+      converted.set(key, lineIndices);
     });
     return converted;
   }
@@ -102,6 +125,7 @@ export default class Transpiler {
   private populate(
     assemblies: PlaceholderLine[][],
     megaMap: MegaMap,
+    lineAlias: LineAlias,
   ): TranspileResult {
     const placeholderMap = new Map<Placeholder, string>();
 
@@ -150,7 +174,7 @@ export default class Transpiler {
     return {
       text: lines.join('\n'),
       expressions,
-      metadata: this.convertMegaMap(megaMap, assemblies),
+      metadata: this.convertMegaMap(megaMap, assemblies, lineAlias),
     };
   }
 
@@ -159,6 +183,7 @@ export default class Transpiler {
     invocationArguments: Argument[],
     definitionMap: Map<string, Definition>,
     megaMap: MegaMap,
+    lineAlias: LineAlias,
     program: ShapeAssemblyProgram,
   ): InvocationResult {
     // Built-in functions don't spawn additional lines.
@@ -252,6 +277,7 @@ export default class Transpiler {
         invocationProcessedArguments,
         definitionMap,
         megaMap,
+        lineAlias,
         program,
       );
       appendedLines.push(...appendedAssemblies);
@@ -283,6 +309,12 @@ export default class Transpiler {
                 const bboxLine = declarationLine.copy();
                 bboxLine.replacePlaceholder(cuboidPlaceholder, 'bbox');
                 appendedAssembly.splice(1, 0, bboxLine);
+
+                // Add to the lineAlias.
+                // This is necessary because the bbox is "created" in two places:
+                // 1. Inside the subassembly. This is the original line the megaMap and localPlaceholderLines point to.
+                // 2. At the call location. megaMap and localPlaceholderLines need to point here too, since this is the cuboid that the server ends up creating.
+                lineAlias.set(declarationLine, bboxLine);
               }
             }
 
