@@ -19,6 +19,9 @@ import InvalidRootAssemblyError from '../error/InvalidRootAssemblyError';
 import ReturnStatement from '../invocation/ReturnStatement';
 import AlreadyReturnedError from '../error/AlreadyReturnedError';
 import UnexpectedReturnError from '../error/UnexpectedReturnError';
+import DEF_KEYWORD from './DefKeyword';
+import UnexpectedTokenError from '../error/UnexpectedTokenError';
+import FunctionOrderingError from '../error/FunctionOrderingError';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -28,7 +31,13 @@ export default class DefinitionParser {
 
   public parseDefinitions(existingDefinitions: Definition[], statements: Statement[]): WithErrors<Definition[]> {
     // Split the statements into chunks.
-    const chunks = this.splitter.splitIntoDefinitions(statements);
+    const unorderedChunks = this.splitter.splitIntoDefinitions(statements);
+
+    // Order the definitions.
+    const chunks = this.orderDefinitions(unorderedChunks);
+    if (chunks instanceof SapError) {
+      return { result: [], errors: [chunks] };
+    }
 
     // Collect definitions and errors.
     const collectedErrors: SapError[] = [];
@@ -41,6 +50,96 @@ export default class DefinitionParser {
       }
     }
     return { result: definitions, errors: collectedErrors };
+  }
+
+  private orderDefinitions(chunks: Statement[][]): Statement[][] | SapError {
+    // Map function names to chunks.
+    const chunkMap = new Map<string, Statement[]>();
+    const reverseChunkMap = new Map<Statement[], string>();
+    for (const chunk of chunks) {
+      let foundDef = false;
+      for (const statement of chunk) {
+        for (const token of statement.tokens) {
+          if (foundDef) {
+            chunkMap.set(token.text, chunk);
+            reverseChunkMap.set(chunk, token.text);
+            break;
+          } else if (token.text === DEF_KEYWORD) {
+            foundDef = true;
+          }
+        }
+        if (foundDef) {
+          break;
+        }
+      }
+      if (!foundDef) {
+        return new UnexpectedTokenError(chunk[0].tokens[0], "function name");
+      }
+    }
+
+    // Map each chunk (definition) to its dependencies.
+    const dependencies = new Map<string, Set<string>>();
+    const dependents = new Map<string, Set<string>>();
+    for (const chunk of chunks) {
+      const chunkName = reverseChunkMap.get(chunk);
+      if (!chunkName) {
+        return new UnexpectedTokenError(chunk[0].tokens[0], "function name");
+      }
+      dependencies.set(chunkName, new Set());
+      dependents.set(chunkName, new Set());
+    }
+    for (const chunk of chunks) {
+      const chunkName = reverseChunkMap.get(chunk);
+      if (!chunkName) {
+        console.error(chunkName);
+        throw new Error("Could not find chunk name.");
+      }
+      for (const statement of chunk) {
+        for (const token of statement.tokens) {
+          const tokenText = token.text;
+          if (tokenText !== chunkName && chunkMap.has(tokenText)) {
+            dependencies.get(chunkName)?.add(tokenText);
+            dependents.get(tokenText)?.add(chunkName);
+          }
+        }
+      }
+    }
+
+    // Do a topsort.
+    const orderedChunks: Statement[][] = [];
+    const available: string[] = [];
+    dependencies.forEach((chunkDependencies, chunkName) => {
+      if (chunkDependencies.size === 0) {
+        available.push(chunkName);
+      }
+    });
+    while (available.length > 0) {
+      const chunkName = available.pop()!;
+      
+      // Add the chunk to the result.
+      const chunk = chunkMap.get(chunkName);
+      if (!chunk) {
+        throw new Error("Could not find chunk for name.");
+      }
+      orderedChunks.push(chunk);
+
+      // Find chunks that can be parsed next.
+      const chunkDependents = dependents.get(chunkName) ?? new Set();
+      for (const dependent of chunkDependents) {
+        const dependentDependencies = dependencies.get(dependent);
+        if (!dependentDependencies) {
+          throw new Error("Could not find dependent's dependencies.");
+        }
+        dependentDependencies.delete(chunkName);
+        if (dependentDependencies.size === 0) {
+          available.push(dependent);
+        }
+      }
+    }
+    if (orderedChunks.length !== chunks.length) {
+      return new FunctionOrderingError(chunks[0][0].tokens[0]);
+    }
+    return orderedChunks;
   }
 
   private parseDefinition(chunk: Statement[], existingDefinitions: Definition[]): WithErrors<Definition | undefined> {
