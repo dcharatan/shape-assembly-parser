@@ -7,11 +7,10 @@ import Declaration from './definition/Declaration';
 import Token from './token/Token';
 import SapType from './type/SapType';
 import BlockType from './type/BlockType';
-import UnitFloat from './type/UnitFloat';
+import SapFloat from './type/SapFloat';
 import Side from './type/Side';
 import Axis from './type/Axis';
-import PositiveInteger from './type/PositiveInteger';
-import PositiveFloat from './type/PositiveFloat';
+import SapInteger from './type/SapInteger';
 import SapBoolean from './type/SapBoolean';
 import ReturnStatement from './invocation/ReturnStatement';
 export { default as Transpiler } from './transpiler/Transpiler';
@@ -48,29 +47,29 @@ export default class ShapeAssemblyParser {
       [
         new BlockType(),
         new BlockType(),
-        new UnitFloat(),
-        new UnitFloat(),
-        new UnitFloat(),
-        new UnitFloat(),
-        new UnitFloat(),
-        new UnitFloat(),
+        new SapFloat(),
+        new SapFloat(),
+        new SapFloat(),
+        new SapFloat(),
+        new SapFloat(),
+        new SapFloat(),
       ],
       undefined,
     );
     const squeeze = this.makeStandardDefinition(
       'squeeze',
-      [new BlockType(), new BlockType(), new BlockType(), new Side(), new UnitFloat(), new UnitFloat()],
+      [new BlockType(), new BlockType(), new BlockType(), new Side(), new SapFloat(), new SapFloat()],
       undefined,
     );
     const reflect = this.makeStandardDefinition('reflect', [new BlockType(), new Axis()], undefined);
     const translate = this.makeStandardDefinition(
       'translate',
-      [new BlockType(), new Axis(), new PositiveInteger(), new PositiveFloat()],
+      [new BlockType(), new Axis(), new SapInteger(), new SapFloat()],
       undefined,
     );
     const cuboid = this.makeStandardDefinition(
       'Cuboid',
-      [new PositiveFloat(), new PositiveFloat(), new PositiveFloat(), new SapBoolean()],
+      [new SapFloat(), new SapFloat(), new SapFloat(), new SapBoolean()],
       new BlockType(),
     );
     return [attach, squeeze, reflect, translate, cuboid];
