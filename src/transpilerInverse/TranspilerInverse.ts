@@ -18,7 +18,11 @@ export default class TranspilerInverse {
         const assemblyNumber = Number.parseInt(line.slice('Assembly Program_'.length));
         currentAssembly = '';
         append(assemblyNumber ? '@child_assembly' : '@root_assembly');
-        append(`def assembly_fn_${assemblyNumber}(${assemblyNumber ? 'bbox' : ''}):`);
+        if (assemblyNumber) {
+          append(`def make_subassembly_${assemblyNumber}(bbox):`);
+        } else {
+          append('def make_root_assembly():')
+        }
         currentAssemblyIsRoot = assemblyNumber === 0;
       }
 
@@ -28,9 +32,9 @@ export default class TranspilerInverse {
       }
 
       // Handle abstractions.
-      else if (line.includes('nfunc')) {
+      else if (line.includes('abstraction')) {
         const equalsIndex = line.indexOf('=');
-        append(`    ${line.trim().replace(new RegExp('Program_', 'g'), 'bbox_fn_')}`);
+        append(`    ${line.trim().replace(new RegExp('Program_', 'g'), 'sub_bbox_')}`);
         if (equalsIndex >= 0) {
           const args = line
             .substring(0, equalsIndex)
@@ -39,7 +43,7 @@ export default class TranspilerInverse {
           for (const arg of args) {
             if (arg.includes('Program_')) {
               const assemblyNumber = this.getAssemblyIndex(arg);
-              append(`    assembly_fn_${assemblyNumber}(bbox_fn_${assemblyNumber})`);
+              append(`    make_subassembly_${assemblyNumber}(sub_bbox_${assemblyNumber})`);
             }
           }
         }
@@ -48,8 +52,8 @@ export default class TranspilerInverse {
       // Handle subassembly invocations.
       else if (line.includes('Program_') && line.includes('=')) {
         const assemblyNumber = this.getAssemblyIndex(line);
-        append(`    bbox_fn_${assemblyNumber} ${line.slice(line.indexOf('='))}`);
-        append(`    assembly_fn_${assemblyNumber}(bbox_fn_${assemblyNumber})`);
+        append(`    sub_bbox_${assemblyNumber} ${line.slice(line.indexOf('='))}`);
+        append(`    make_subassembly_${assemblyNumber}(sub_bbox_${assemblyNumber})`);
       }
 
       // Skip closing parentheses.
@@ -59,7 +63,7 @@ export default class TranspilerInverse {
 
       // Handle all other lines.
       else {
-        append(`    ${line.trim().replace(new RegExp('Program_', 'g'), 'bbox_fn_')}`);
+        append(`    ${line.trim().replace(new RegExp('Program_', 'g'), 'sub_bbox_')}`);
       }
     }
 
