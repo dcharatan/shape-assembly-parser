@@ -6,8 +6,18 @@ import BlockType from '../type/BlockType';
 import Placeholder from './Placeholder';
 import PlaceholderLine from './PlaceholderLine';
 
-type MegaMap = Map<string, PlaceholderLine[]>;
+type HighlightVariant = "primary" | "secondary"
+type Highlight = {
+  placeholderLine: PlaceholderLine;
+  variant: HighlightVariant;
+};
+type LineHighlight = {
+  line: number,
+  variant: HighlightVariant;
+}
+type MegaMap = Map<string, Highlight[]>;
 type LineAlias = Map<PlaceholderLine, PlaceholderLine>;
+
 interface InvocationResult {
   inPlace: PlaceholderLine[] | Placeholder;
   appendedAssemblies: PlaceholderLine[][];
@@ -33,7 +43,7 @@ interface TranspileResult {
   expressions: {
     [key: number]: ExpressionNodeJSON[];
   };
-  metadata: Map<string, number[]>;
+  metadata: Map<string, LineHighlight[]>;
 }
 
 export default class Transpiler {
@@ -48,7 +58,11 @@ export default class Transpiler {
     return `${token.start}/${token.end}`;
   }
 
-  private extendMegaMap(megaMap: MegaMap, key: Token, value: PlaceholderLine[]) {
+  private makeHighlight(placeholderLines: PlaceholderLine[], variant: HighlightVariant): Highlight[] {
+    return placeholderLines.map((placeholderLine) => ({ placeholderLine, variant }));
+  }
+
+  private extendMegaMap(megaMap: MegaMap, key: Token, value: Highlight[]) {
     const keyString = this.tokenToKey(key);
     if (!megaMap.has(keyString)) {
       megaMap.set(keyString, []);
@@ -71,7 +85,7 @@ export default class Transpiler {
 
     // This directly maps highlightable tokens to the transpiled lines they represent.
     // The keys are token keys, i.e. `${token.start}/${token.end}`
-    const megaMap = new Map<string, PlaceholderLine[]>();
+    const megaMap = new Map<string, Highlight[]>();
 
     // This aliasing is needed for bounding box highlights to work properly.
     // When Python ShapeAssembly is transpiled, it first sees a subassembly's bounding box cuboid.
@@ -94,7 +108,7 @@ export default class Transpiler {
     megaMap: MegaMap,
     assemblies: PlaceholderLine[][],
     lineAlias: LineAlias,
-  ): Map<string, number[]> {
+  ): Map<string, LineHighlight[]> {
     // Map PlaceholderLine to number.
     const placeholderToLineIndex = new Map<PlaceholderLine, number>();
     let lineIndex = 0;
@@ -106,25 +120,31 @@ export default class Transpiler {
     }
 
     // Convert the megaMap.
-    const converted = new Map<string, number[]>();
-    megaMap.forEach((placeholderLines, key) => {
-      const lineIndices: number[] = [];
-      const addToLineIndices = (placeholderLine: PlaceholderLine) => {
+    const converted = new Map<string, LineHighlight[]>();
+    megaMap.forEach((highlights, key) => {
+      const lineIndices: LineHighlight[] = [];
+      const addToLineIndices = ({ placeholderLine, variant }: Highlight) => {
         const lineIndex = placeholderToLineIndex.get(placeholderLine);
         if (lineIndex === undefined) {
           throw new Error('Could not find line index for placeholder line.');
         }
-        lineIndices.push(lineIndex);
+        lineIndices.push({
+          line: lineIndex,
+          variant,
+        });
       };
 
-      placeholderLines.forEach((placeholderLine) => {
+      highlights.forEach((highlight) => {
         // Add the original line index.
-        addToLineIndices(placeholderLine);
+        addToLineIndices(highlight);
 
         // Add an alias if it exists.
-        const alias = lineAlias.get(placeholderLine);
+        const alias = lineAlias.get(highlight.placeholderLine);
         if (alias) {
-          addToLineIndices(alias);
+          addToLineIndices({
+            placeholderLine: alias,
+            variant: highlight.variant,
+          });
         }
       });
       converted.set(key, lineIndices);
@@ -223,7 +243,7 @@ export default class Transpiler {
       // The value of transpiledLines is non-undefined when the parameter is a cuboid.
       const placeholderLines = invocationArguments[index].placeholderLines;
       if (placeholderLines) {
-        this.extendMegaMap(megaMap, token, placeholderLines);
+        this.extendMegaMap(megaMap, token, this.makeHighlight(placeholderLines, "primary"));
         mapLocalValueToPlaceholderLines(token, placeholderLines);
       }
     });
@@ -268,7 +288,7 @@ export default class Transpiler {
             if (!placeholderLines) {
               throw new Error('Could not find transpiled lines for cuboid function argument.');
             }
-            this.extendMegaMap(megaMap, argumentExpression.token, placeholderLines);
+            this.extendMegaMap(megaMap, argumentExpression.token, this.makeHighlight(placeholderLines, "primary"));
           }
 
           return {
@@ -310,7 +330,7 @@ export default class Transpiler {
       }
       // Next, update the megaMap.
       if (!invocationDefinition.isBuiltIn && !invocationDefinition.isRootAssembly) {
-        this.extendMegaMap(megaMap, invocation.definitionToken, returnedCreatedPlaceholderLines);
+        this.extendMegaMap(megaMap, invocation.definitionToken, this.makeHighlight(returnedCreatedPlaceholderLines, "primary"));
       }
 
       // If inPlace is a placeholder, it's a placeholder for an assembly.
@@ -373,18 +393,18 @@ export default class Transpiler {
         line.add(placeholder, ' = ');
 
         // Add to the megaMap for the assignment token itself.
-        this.extendMegaMap(megaMap, assignmentToken, [line]);
+        this.extendMegaMap(megaMap, assignmentToken, this.makeHighlight([line], "primary"));
         mapLocalValueToPlaceholderLines(assignmentToken, [line]);
 
         // Add to the megaMap for the function name.
-        this.extendMegaMap(megaMap, invocation.definitionToken, [line]);
+        this.extendMegaMap(megaMap, invocation.definitionToken, this.makeHighlight([line], "primary"));
       } else if (!definition.isBuiltIn) {
         // Add assignments for user-defined functions.
         returnedPlaceholders.forEach((placeholder, index) => {
           const assignmentToken = invocation.assignmentTokens[index];
           const assignmentPlaceholders = returnedPlaceholderLines[index];
           localValues.set(assignmentToken.text, placeholder);
-          this.extendMegaMap(megaMap, assignmentToken, assignmentPlaceholders);
+          this.extendMegaMap(megaMap, assignmentToken, this.makeHighlight(assignmentPlaceholders, "primary"));
           mapLocalValueToPlaceholderLines(assignmentToken, assignmentPlaceholders);
         });
       }
@@ -444,7 +464,7 @@ export default class Transpiler {
         if (!returnedPlaceholderLinesForToken) {
           throw new Error('Could not find placeholder lines for return token.');
         }
-        this.extendMegaMap(megaMap, returnedToken, returnedPlaceholderLinesForToken);
+        this.extendMegaMap(megaMap, returnedToken, this.makeHighlight(returnedPlaceholderLinesForToken, "primary"));
         returnedPlaceholderLines.push(returnedPlaceholderLinesForToken);
       }
       return {
