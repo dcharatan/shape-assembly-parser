@@ -344,9 +344,12 @@ export default class Transpiler {
         }
         line.add(placeholder, ' = ');
 
-        // Add to the megaMap.
+        // Add to the megaMap for the assignment token itself.
         this.extendMegaMap(megaMap, assignmentToken, [line]);
         mapLocalValueToPlaceholderLines(assignmentToken, [line]);
+
+        // Add to the megaMap for the function name.
+        this.extendMegaMap(megaMap, invocation.definitionToken, [line]);
       } else if (!definition.isBuiltIn) {
         // Add assignments for user-defined functions.
         returnedPlaceholders.forEach((placeholder, index) => {
