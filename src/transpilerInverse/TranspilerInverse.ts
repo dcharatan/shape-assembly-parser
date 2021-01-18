@@ -32,7 +32,10 @@ export default class TranspilerInverse {
         const equalsIndex = line.indexOf('=');
         append(`    ${line.trim().replace(new RegExp('Program_', 'g'), 'bbox_fn_')}`);
         if (equalsIndex >= 0) {
-          const args = line.substring(0, equalsIndex).split(',').map((x) => x.trim());
+          const args = line
+            .substring(0, equalsIndex)
+            .split(',')
+            .map((x) => x.trim());
           for (const arg of args) {
             if (arg.includes('Program_')) {
               const assemblyNumber = this.getAssemblyIndex(arg);

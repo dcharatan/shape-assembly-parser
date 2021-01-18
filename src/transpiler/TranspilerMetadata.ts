@@ -1,11 +1,12 @@
 import { ShapeAssemblyProgram } from '..';
-import ExpressionNode from '../expression/ExpressionNode';
+import Definition from '../definition/Definition';
 import Token, { TokenJSON } from '../token/Token';
+import BlockType from '../type/BlockType';
 import characterIndexToLineIndex from './characterIndexToLineIndex';
 import PlaceholderLine from './PlaceholderLine';
 
 type TokenKey = string;
-const tokenToKey = (token: Token) => `${token.start}/${token.end}`;
+const tokenToKey = (token: Token | TokenJSON) => `${token.start}/${token.end}`;
 
 export default class TranspilerMetadata {
   // This maps Python line indices to transpiled line indices.
@@ -47,42 +48,113 @@ export default class TranspilerMetadata {
 
   private fillConvenienceMaps() {
     this.tokenLineMap.forEach((line, tokenKey) => {
-      // Make the arrays if they're not already there.
-      this.tokenToDirectLines.set(tokenKey, this.tokenToDirectLines.get(tokenKey) ?? []);
-      this.tokenToDescendantLines.set(tokenKey, this.tokenToDescendantLines.get(tokenKey) ?? []);
-      this.tokenToDirectLines.get(tokenKey)?.push(...(this.invocationLineMap.get(line) ?? []));
-      this.tokenToDescendantLines.get(tokenKey)?.push(...(this.invocationDescendantLineMap.get(line) ?? []));
+      // Using the cuboidUsageMap, find the original assignment.
+      const originalToken = this.cuboidUsageMap.get(tokenKey);
+      if (originalToken) {
+        // This is a cuboid that was originally assigned elsewhere.
+        // Get the original assignment's line.
+        const originalTokenKey = tokenToKey(originalToken);
+        const originalLine = this.tokenLineMap.get(originalTokenKey);
+        if (originalLine === undefined) {
+          console.error(originalToken);
+          throw Error("Line for original assignment's token not found.");
+        }
+
+        // Use the original token and line.
+        this.tokenToDirectLines.set(tokenKey, this.tokenToDirectLines.get(originalTokenKey) ?? []);
+        this.tokenToDescendantLines.set(tokenKey, this.tokenToDescendantLines.get(originalTokenKey) ?? []);
+        this.tokenToDirectLines.get(tokenKey)?.push(...(this.invocationLineMap.get(originalLine) ?? []));
+        this.tokenToDescendantLines.get(tokenKey)?.push(...(this.invocationDescendantLineMap.get(originalLine) ?? []));
+      } else {
+        // There's no cuboid mapping. Just use the direct (old) approach.
+        // Make the arrays if they're not already there.
+        this.tokenToDirectLines.set(tokenKey, this.tokenToDirectLines.get(tokenKey) ?? []);
+        this.tokenToDescendantLines.set(tokenKey, this.tokenToDescendantLines.get(tokenKey) ?? []);
+        this.tokenToDirectLines.get(tokenKey)?.push(...(this.invocationLineMap.get(line) ?? []));
+        this.tokenToDescendantLines.get(tokenKey)?.push(...(this.invocationDescendantLineMap.get(line) ?? []));
+      }
     });
   }
 
   private fillCuboidUsageMap(program: ShapeAssemblyProgram) {
+    // This maps definition names to definition-specific assignment maps.
+    // An assignment map maps each cuboid variable to the assignment token of the cuboid command that created it.
+    const globalAssignmentMap = new Map<string, Map<string, TokenJSON>>();
+    const definitionMap = new Map<string, Definition>();
+
     program.definitions.forEach((definition) => {
       const assignmentMap = new Map<string, TokenJSON>();
+      definitionMap.set(definition.declaration.nameToken.text, definition);
 
       // Map tokens to where they were assigned (as arguments).
       definition.declaration.parameterTokens.forEach((token) => assignmentMap.set(token.text, token.toJson()));
 
-      // Map tokens to where they were assigned (via assignment).
-      const mapTokens = (expression: ExpressionNode) => {
-        const token = assignmentMap.get(expression.token.text);
-        if (token) {
-          this.cuboidUsageMap.set(tokenToKey(expression.token), token);
-        }
-        expression.token.text;
-        expression.children.forEach(mapTokens);
-      };
-
+      // Map cuboid usages in invocations.
       definition.invocations.forEach((invocation) => {
-        invocation.assignmentTokens.forEach((assignmentToken) =>
-          assignmentMap.set(assignmentToken.text, assignmentToken.toJson()),
-        );
-        invocation.argumentExpressions.forEach(mapTokens);
+        if (invocation.definitionToken.text === 'Cuboid') {
+          // The assignment is from a cuboid command, so it's creating cuboids.
+          invocation.assignmentTokens.forEach((assignmentToken) =>
+            assignmentMap.set(assignmentToken.text, assignmentToken.toJson()),
+          );
+        } else {
+          // The assignment is from a function/abstraction.
+          // We need to find the function's assignmentMap and read from it.
+          const functionAssignmentMap = globalAssignmentMap.get(invocation.definitionToken.text);
+          if (!functionAssignmentMap) {
+            throw new Error('Could not find assignment map for function definition.');
+          }
+          invocation.assignmentTokens.forEach((assignmentToken, index) => {
+            // Figure out what the token is called at assignment.
+            const invocationDefinition = definitionMap.get(invocation.definitionToken.text);
+            if (!invocationDefinition) {
+              throw new Error('Could not find definition for invocation.');
+            }
+            const nameAtSourceToken = invocationDefinition.returnStatement?.tokens[index];
+            if (!nameAtSourceToken) {
+              throw new Error("Could not find assignment's name at source definition.");
+            }
+
+            // Get the original assignment token using the token's name in the invocation's definition.
+            const token = functionAssignmentMap.get(nameAtSourceToken.text);
+            if (token) {
+              this.cuboidUsageMap.set(tokenToKey(assignmentToken), token);
+              assignmentMap.set(assignmentToken.text, token);
+            } else {
+              throw new Error('Could not find original assignment for function/abstraction assignment.');
+            }
+          });
+        }
+        invocation.argumentExpressions.forEach((expression, index) => {
+          if (invocation.argumentTypes[index] instanceof BlockType) {
+            const token = assignmentMap.get(expression.token.text);
+            if (token) {
+              this.cuboidUsageMap.set(tokenToKey(expression.token), token);
+            } else {
+              throw new Error('Could not find assignment.');
+            }
+          }
+        });
       });
+
+      // Map cuboid usage in the return.
+      if (definition.returnStatement && !definition.isBuiltIn) {
+        definition.returnStatement.tokens.forEach((token) => {
+          const assignmentToken = assignmentMap.get(token.text);
+          if (!assignmentToken) {
+            throw new Error('Returned unknown value.');
+          }
+          this.cuboidUsageMap.set(tokenToKey(token), assignmentToken);
+        });
+      }
+
+      globalAssignmentMap.set(definition.declaration.nameToken.text, assignmentMap);
     });
   }
 
   private fillTokenLineMap(program: ShapeAssemblyProgram) {
-    program.tokens.forEach((token) => this.tokenLineMap.set(tokenToKey(token), characterIndexToLineIndex(token.start, program.lineBreaks)));
+    program.tokens.forEach((token) =>
+      this.tokenLineMap.set(tokenToKey(token), characterIndexToLineIndex(token.start, program.lineBreaks)),
+    );
   }
 
   private fillInvocationLineMap(
