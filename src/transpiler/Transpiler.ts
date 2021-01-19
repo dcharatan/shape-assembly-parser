@@ -46,12 +46,39 @@ interface TranspileResult {
   metadata: Map<string, LineHighlight[]>;
 }
 
+interface TranspilerOptions {
+  doBboxAttachPostprocessing: boolean | undefined;
+}
+
 export default class Transpiler {
-  public transpile(program: ShapeAssemblyProgram): TranspileResult | undefined {
+  public transpile(program: ShapeAssemblyProgram, options?: TranspilerOptions): TranspileResult | undefined {
     if (program.errors.length) {
       return undefined;
     }
-    return this.transpileValidProgram(program);
+    const transpiled = this.transpileValidProgram(program);
+    if (!transpiled) {
+      return transpiled;
+    }
+    if (options?.doBboxAttachPostprocessing) {
+      transpiled.text = this.doBboxAttachPostprocessing(transpiled.text);
+    }
+    return transpiled;
+  }
+
+  private doBboxAttachPostprocessing(transpiled: string): string {
+    const postprocessedLines: string[] = [];
+    for (const line of transpiled.split('\n')) {
+      // Flip the 7th attach parameter if the 2nd cuboid is a bounding box.
+      const components = line.split(",");
+      if (line.includes("attach") && components[1].includes("bbox")) {
+        components[6] = ` ${1 - parseFloat(components[6])}`;
+        postprocessedLines.push(components.join(","));
+        console.log(`Flipped ${line} to ${components.join(",")}.`);
+      } else {
+        postprocessedLines.push(line);
+      }
+    }
+    return postprocessedLines.join("\n");
   }
 
   private tokenToKey(token: Token) {
