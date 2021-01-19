@@ -58,7 +58,7 @@ export default class TranspilerInverse {
 
       // Skip closing parentheses.
       else if (line.includes('}')) {
-        assemblies.unshift(currentAssembly);
+        assemblies.push(currentAssembly);
       }
 
       // Handle all other lines.
