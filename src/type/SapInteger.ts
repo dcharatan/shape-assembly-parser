@@ -7,7 +7,7 @@ import DivisionByZeroError from '../error/DivisionByZeroError';
 export default class SapInteger extends SapFloat {
   parse(token: Token): number | SapError {
     const result = super.parse(token);
-    if (result instanceof SapError || result === Math.trunc(result)) {
+    if (!(typeof result === 'string' || result instanceof String) && (result instanceof SapError || result === Math.trunc(result))) {
       return result;
     }
     return new SapTypeError(token, this);

@@ -1,5 +1,6 @@
 import separators from '../token/separators';
 import DEF_KEYWORD from '../definition/DefKeyword';
+import { floatSubstitutionValues } from '../type/SapFloat';
 
 export default class NameValidator {
   private readonly RESERVED_KEYWORDS = [
@@ -17,6 +18,7 @@ export default class NameValidator {
     'front',
     'back',
     'return',
+    ...floatSubstitutionValues,
   ];
 
   public isValidName(name: string): boolean {

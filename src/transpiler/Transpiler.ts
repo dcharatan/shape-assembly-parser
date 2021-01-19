@@ -48,6 +48,7 @@ interface TranspileResult {
 
 interface TranspilerOptions {
   doBboxAttachPostprocessing: boolean | undefined;
+  doBboxParamSubstitution: boolean | undefined;
 }
 
 export default class Transpiler {
@@ -59,10 +60,97 @@ export default class Transpiler {
     if (!transpiled) {
       return transpiled;
     }
+    if (options?.doBboxParamSubstitution) {
+      transpiled.text = this.doBboxParamSubstitution(transpiled.text);
+    }
     if (options?.doBboxAttachPostprocessing) {
       transpiled.text = this.doBboxAttachPostprocessing(transpiled.text);
     }
     return transpiled;
+  }
+
+  private doBboxParamSubstitution(transpiled: string): string {
+    // Record the assembly dependency order.
+    // Also track bbox param values for each assembly.
+    const parentMap = new Map<string, string>();
+    const childMap = new Map<string, string[]>();
+    const bboxParamValues = new Map<string, Map<string, string>>();
+    let currentAssembly: string | undefined;
+    for (const line of transpiled.split('\n')) {
+      if (line.includes("Assembly")) {
+        currentAssembly = line.split(" ")[1];
+      } else if (line.includes("Program_") && line.includes("=")) {
+        const dependent = line.split("=")[0].trim();
+        if (!currentAssembly) {
+          throw new Error("Could not find parent for assembly.");
+        }
+        parentMap.set(dependent, currentAssembly);
+        if (!childMap.has(currentAssembly)) {
+          childMap.set(currentAssembly, []);
+        }
+        childMap.get(currentAssembly)?.push(dependent);
+      } else if (line.includes("bbox = Cuboid")) {
+        const components = line.split(",");
+        const bboxParams = new Map<string, string>();
+        bboxParams.set("f_bb_x", components[0].split("(")[1].trim());
+        bboxParams.set("f_bb_y", components[1].trim());
+        bboxParams.set("f_bb_z", components[2].trim());
+        if (!currentAssembly) {
+          throw new Error("Could not find parent for assembly.");
+        }
+        bboxParamValues.set(currentAssembly, bboxParams);
+      }
+    }
+
+    // Do a topsort to update f_bb_x/y/z bbox parameters with their parents' values.
+    const queue = ['Program_0'];
+    while (queue.length > 0) {
+      const parent = queue.pop()!;
+      const parentBboxParams = bboxParamValues.get(parent)!;
+
+      // Go to the parent's children.
+      for (const child of childMap.get(parent) ?? []) {
+        const childBboxParams = bboxParamValues.get(child)!;
+        childBboxParams.forEach((value, key) => {
+          if (key.includes("f_bb") && value.includes("f_bb")) {
+            childBboxParams.set(key, parentBboxParams.get(key)!);
+          }
+        });
+        queue.push(child);
+      }
+    }
+
+    const postprocessedLines: string[] = [];
+    currentAssembly = undefined;
+    for (const line of transpiled.split('\n')) {
+      // Record the current assembly.
+      if (line.includes("Assembly")) {
+        currentAssembly = line.split(" ")[1];
+      }
+
+      // Choose the parent assembly for the substitution.
+      // For bounding box declarations, it's the parent bounding box.
+      // For everything else, it's the current bounding box.
+      let parentAssembly = currentAssembly;
+      if (line.includes("bbox = Cuboid")) {
+        if (!currentAssembly) {
+          throw new Error("Could not find current assembly.");
+        }
+        parentAssembly = parentMap.get(currentAssembly);
+      }
+
+      // Make the substitutions.
+      const bboxParams = parentAssembly ? bboxParamValues.get(parentAssembly) : bboxParamValues.get("Program_0");
+      if (!bboxParams) {
+        throw new Error("Could not find bbox param values.");
+      }
+      let postprocessedLine = line;
+      bboxParams.forEach((newValue, oldValue) => {
+        postprocessedLine = postprocessedLine.replace(oldValue, newValue);
+      });
+      postprocessedLines.push(postprocessedLine);
+    }
+    return postprocessedLines.join("\n");
   }
 
   private doBboxAttachPostprocessing(transpiled: string): string {
