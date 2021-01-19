@@ -73,7 +73,6 @@ export default class Transpiler {
       if (line.includes("attach") && components[1].includes("bbox")) {
         components[6] = ` ${1 - parseFloat(components[6])}`;
         postprocessedLines.push(components.join(","));
-        console.log(`Flipped ${line} to ${components.join(",")}.`);
       } else {
         postprocessedLines.push(line);
       }
