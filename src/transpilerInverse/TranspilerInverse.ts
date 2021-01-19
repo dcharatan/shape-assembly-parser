@@ -7,9 +7,11 @@ export default class TranspilerInverse {
     const assemblies: string[] = [];
     const lines = program.split('\n');
     let currentAssembly = '';
+    let currentAssemblySubassemblies = ''; 
     let currentAssemblyIsRoot = true;
 
     const append = (text: string) => (currentAssembly += text + '\n');
+    const appendSubassembly = (text: string) => (currentAssemblySubassemblies += text + '\n');
 
     for (const line of lines) {
       // Handle assembly declarations.
@@ -17,6 +19,7 @@ export default class TranspilerInverse {
         // Get the assembly number.
         const assemblyNumber = Number.parseInt(line.slice('Assembly Program_'.length));
         currentAssembly = '';
+        currentAssemblySubassemblies = '';
         append(assemblyNumber ? '@child_assembly' : '@root_assembly');
         if (assemblyNumber) {
           append(`def make_subassembly_${assemblyNumber}(bbox):`);
@@ -43,7 +46,7 @@ export default class TranspilerInverse {
           for (const arg of args) {
             if (arg.includes('Program_')) {
               const assemblyNumber = this.getAssemblyIndex(arg);
-              append(`    make_subassembly_${assemblyNumber}(sub_bbox_${assemblyNumber})`);
+              appendSubassembly(`    make_subassembly_${assemblyNumber}(sub_bbox_${assemblyNumber})`);
             }
           }
         }
@@ -53,11 +56,12 @@ export default class TranspilerInverse {
       else if (line.includes('Program_') && line.includes('=')) {
         const assemblyNumber = this.getAssemblyIndex(line);
         append(`    sub_bbox_${assemblyNumber} ${line.slice(line.indexOf('='))}`);
-        append(`    make_subassembly_${assemblyNumber}(sub_bbox_${assemblyNumber})`);
+        appendSubassembly(`    make_subassembly_${assemblyNumber}(sub_bbox_${assemblyNumber})`);
       }
 
       // Skip closing parentheses.
       else if (line.includes('}')) {
+        currentAssembly += currentAssemblySubassemblies
         assemblies.push(currentAssembly);
       }
 
