@@ -44,6 +44,7 @@ interface TranspileResult {
     [key: number]: ExpressionNodeJSON[];
   };
   metadata: Map<string, LineHighlight[]>;
+  assemblyMap: Map<string, string>, // This maps transpiled assembly names to their original assembly names.
 }
 
 interface TranspilerOptions {
@@ -276,9 +277,14 @@ export default class Transpiler {
     const placeholderMap = new Map<Placeholder, string>();
 
     // Map assembly placeholders.
+    const assemblyMap = new Map<string, string>();
     assemblies.forEach((assembly, index) => {
       const placeholder = assembly[0].firstAssemblyPlaceholder();
-      placeholderMap.set(placeholder, `Program_${index}`);
+      const transpiledAssemblyName = `Program_${index}`;
+      placeholderMap.set(placeholder, transpiledAssemblyName);
+      if (placeholder.assemblyName) {
+        assemblyMap.set(transpiledAssemblyName, placeholder.assemblyName);
+      }
     });
 
     // Map cuboid placeholders.
@@ -321,6 +327,7 @@ export default class Transpiler {
       text: lines.join('\n'),
       expressions,
       metadata: this.convertMegaMap(megaMap, assemblies, lineAlias),
+      assemblyMap,
     };
   }
 
@@ -536,7 +543,7 @@ export default class Transpiler {
       let isBoundingBoxLine = false;
       if (invocation.definitionToken.text === 'Cuboid') {
         const assignmentToken = invocation.assignmentTokens[0];
-        const placeholder = assignmentToken.text === 'bbox' ? 'bbox' : new Placeholder(false, assignmentToken);
+        const placeholder = assignmentToken.text === 'bbox' ? 'bbox' : new Placeholder(undefined, assignmentToken);
         isBoundingBoxLine = placeholder === 'bbox';
         if (assignmentToken) {
           localValues.set(assignmentToken.text, placeholder);
@@ -628,7 +635,7 @@ export default class Transpiler {
     } else {
       // Assemblies don't add lines to the place where they're called.
       // Instead, an assembly's invocations are wrapped in an assembly call.
-      const placeholder = new Placeholder(true);
+      const placeholder = new Placeholder(definition.declaration.nameToken.text);
       invocationLines.unshift(new PlaceholderLine(['Assembly ', placeholder, ' {'], []));
       invocationLines.push(new PlaceholderLine(['}'], []));
       return {
