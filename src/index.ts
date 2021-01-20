@@ -60,7 +60,7 @@ export default class ShapeAssemblyParser {
         new SapFloat(),
         new SapFloat(),
       ],
-      [undefined, undefined, [100, 1000], 'unit', 'unit', 'unit', 'unit', 'unit'],
+      [undefined, undefined, 'unit', 'unit', 'unit', 'unit', 'unit', 'unit'],
       undefined,
     );
     const squeeze = this.makeStandardDefinition(
