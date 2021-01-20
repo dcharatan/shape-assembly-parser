@@ -3,8 +3,10 @@ import Invocation from '../invocation/Invocation';
 import Declaration from './Declaration';
 import ReturnStatement from '../invocation/ReturnStatement';
 
+export type ArgumentRangeType = [number, number] | 'unit' | 'bbox_x' | 'bbox_y' | 'bbox_z' | undefined;
+
 export default class Definition {
-  public isFromPrefix: boolean = false;
+  public isFromPrefix = false;
 
   constructor(
     public declaration: Declaration,
@@ -15,5 +17,6 @@ export default class Definition {
     public readonly isChildAssembly: boolean,
     public returnType?: SapType<unknown>,
     public returnStatement?: ReturnStatement,
+    public argumentRangeTypes: ArgumentRangeType[][] = [],
   ) {}
 }

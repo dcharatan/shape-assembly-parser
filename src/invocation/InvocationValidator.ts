@@ -1,4 +1,4 @@
-import Definition from '../definition/Definition';
+import Definition, { ArgumentRangeType } from '../definition/Definition';
 import Invocation from './Invocation';
 import SapError from '../error/SapError';
 import InvocationError from '../error/InvocationError';
@@ -16,6 +16,8 @@ import BlockType from '../type/BlockType';
 import ReturnTypeError from '../error/ReturnTypeError';
 import UnexpectedTokenError from '../error/UnexpectedTokenError';
 import UnexpectedAssignmentCountError from '../error/UnexpectedAssignmentCountError';
+import SapFloat from '../type/SapFloat';
+import MappedSet from '../MappedSet';
 
 export default class InvocationValidator {
   private nameValidator: NameValidator = new NameValidator();
@@ -24,6 +26,7 @@ export default class InvocationValidator {
     invocation: Invocation,
     existingDefinitions: Definition[],
     functionLocalTypes: Map<string, SapType<unknown> | null>,
+    argumentRangeTypes: MappedSet<string, ArgumentRangeType>,
   ): SapError | undefined {
     // Validate that a corresponding definition exists.
     const definition = existingDefinitions.find(
@@ -84,6 +87,9 @@ export default class InvocationValidator {
             return new NotDeclaredError(leaf.token);
           } else if (existingType === null) {
             functionLocalTypes.set(leaf.token.text, expectedType);
+            if (expectedType instanceof SapFloat) {
+              argumentRangeTypes.add(leaf.token.text, ...definition.argumentRangeTypes[i]);
+            }
           } else if (existingType.name !== expectedType.name) {
             return new SapTypeError(leaf.token, expectedType);
           }

@@ -1,5 +1,5 @@
 import Statement from '../statement/Statement';
-import Definition from './Definition';
+import Definition, { ArgumentRangeType } from './Definition';
 import DefinitionSplitter from './DefinitionSplitter';
 import SapError from '../error/SapError';
 import DeclarationParser from './DeclarationParser';
@@ -22,6 +22,7 @@ import UnexpectedReturnError from '../error/UnexpectedReturnError';
 import DEF_KEYWORD from './DefKeyword';
 import UnexpectedTokenError from '../error/UnexpectedTokenError';
 import FunctionOrderingError from '../error/FunctionOrderingError';
+import MappedSet from '../MappedSet';
 
 export default class DefinitionParser {
   private splitter: DefinitionSplitter = new DefinitionSplitter();
@@ -73,7 +74,7 @@ export default class DefinitionParser {
         }
       }
       if (!foundDef) {
-        return new UnexpectedTokenError(chunk[0].tokens[0], "function name");
+        return new UnexpectedTokenError(chunk[0].tokens[0], 'function name');
       }
     }
 
@@ -83,7 +84,7 @@ export default class DefinitionParser {
     for (const chunk of chunks) {
       const chunkName = reverseChunkMap.get(chunk);
       if (!chunkName) {
-        return new UnexpectedTokenError(chunk[0].tokens[0], "function name");
+        return new UnexpectedTokenError(chunk[0].tokens[0], 'function name');
       }
       dependencies.set(chunkName, new Set());
       dependents.set(chunkName, new Set());
@@ -92,7 +93,7 @@ export default class DefinitionParser {
       const chunkName = reverseChunkMap.get(chunk);
       if (!chunkName) {
         console.error(chunkName);
-        throw new Error("Could not find chunk name.");
+        throw new Error('Could not find chunk name.');
       }
       for (const statement of chunk) {
         for (const token of statement.tokens) {
@@ -114,12 +115,15 @@ export default class DefinitionParser {
       }
     });
     while (available.length > 0) {
-      const chunkName = available.pop()!;
-      
+      const chunkName = available.pop();
+      if (!chunkName) {
+        throw new Error('This should literally never happen.');
+      }
+
       // Add the chunk to the result.
       const chunk = chunkMap.get(chunkName);
       if (!chunk) {
-        throw new Error("Could not find chunk for name.");
+        throw new Error('Could not find chunk for name.');
       }
       orderedChunks.push(chunk);
 
@@ -183,6 +187,10 @@ export default class DefinitionParser {
       return returnValue;
     }
 
+    // Initialize the argumentRangeTypes.
+    // This is updated as the parameter types become known (floats become either unit or bbox-based).
+    const argumentRangeTypes = new MappedSet<string, ArgumentRangeType>();
+
     // Create a map of known types.
     // A null entry means that the variable exists, but that the type is (yet) unknown.
     const functionLocalTypes = new Map<string, SapType<unknown> | null>();
@@ -234,7 +242,12 @@ export default class DefinitionParser {
 
       // Validate the invocation.
       // Ensure that types match, variable and function names are valid, etc.
-      const error = this.invocationValidator.validateInvocation(invocation, existingDefinitions, functionLocalTypes);
+      const error = this.invocationValidator.validateInvocation(
+        invocation,
+        existingDefinitions,
+        functionLocalTypes,
+        argumentRangeTypes,
+      );
       if (error instanceof SapError) {
         returnValue.errors.push(error);
         return returnValue;
@@ -259,6 +272,7 @@ export default class DefinitionParser {
       isRootAssembly,
       isChildAssembly,
       returnStatement,
+      declaration.parameterTokens.map((parameterToken) => [...argumentRangeTypes.get(parameterToken.text)] ?? []),
     );
     return returnValue;
   }
@@ -270,6 +284,7 @@ export default class DefinitionParser {
     isRootAssembly: boolean,
     isChildAssembly: boolean,
     returnStatement: ReturnStatement | undefined,
+    argumentRangeTypes: ArgumentRangeType[][],
   ): Definition {
     const types = declaration.parameterTokens.map((token) => typeMap.get(token.text) ?? new UnknownType());
     return new Definition(
@@ -281,6 +296,7 @@ export default class DefinitionParser {
       isChildAssembly,
       returnStatement ? new BlockType() : undefined,
       returnStatement,
+      argumentRangeTypes,
     );
   }
 }

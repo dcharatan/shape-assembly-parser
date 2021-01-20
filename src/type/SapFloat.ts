@@ -4,7 +4,7 @@ import SapType from './SapType';
 import SapTypeError from '../error/SapTypeError';
 import DivisionByZeroError from '../error/DivisionByZeroError';
 
-export const floatSubstitutionValues = ["f_bb_x", "f_bb_y", "f_bb_z"];
+export const floatSubstitutionValues = ['f_bb_x', 'f_bb_y', 'f_bb_z'];
 
 type SapFloatValue = number | string;
 export default class SapFloat extends SapType<SapFloatValue> {

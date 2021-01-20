@@ -7,7 +7,7 @@ export default class TranspilerInverse {
     const assemblies: string[] = [];
     const lines = program.split('\n');
     let currentAssembly = '';
-    let currentAssemblySubassemblies = ''; 
+    let currentAssemblySubassemblies = '';
     let currentAssemblyIsRoot = true;
 
     const append = (text: string) => (currentAssembly += text + '\n');
@@ -24,7 +24,7 @@ export default class TranspilerInverse {
         if (assemblyNumber) {
           append(`def make_subassembly_${assemblyNumber}(bbox):`);
         } else {
-          append('def make_root_assembly():')
+          append('def make_root_assembly():');
         }
         currentAssemblyIsRoot = assemblyNumber === 0;
       }
@@ -61,7 +61,7 @@ export default class TranspilerInverse {
 
       // Skip closing parentheses.
       else if (line.includes('}')) {
-        currentAssembly += currentAssemblySubassemblies
+        currentAssembly += currentAssemblySubassemblies;
         assemblies.push(currentAssembly);
       }
 

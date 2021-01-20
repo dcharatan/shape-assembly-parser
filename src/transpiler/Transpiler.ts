@@ -77,26 +77,26 @@ export default class Transpiler {
     const bboxParamValues = new Map<string, Map<string, string>>();
     let currentAssembly: string | undefined;
     for (const line of transpiled.split('\n')) {
-      if (line.includes("Assembly")) {
-        currentAssembly = line.split(" ")[1];
-      } else if (line.includes("Program_") && line.includes("=")) {
-        const dependent = line.split("=")[0].trim();
+      if (line.includes('Assembly')) {
+        currentAssembly = line.split(' ')[1];
+      } else if (line.includes('Program_') && line.includes('=')) {
+        const dependent = line.split('=')[0].trim();
         if (!currentAssembly) {
-          throw new Error("Could not find parent for assembly.");
+          throw new Error('Could not find parent for assembly.');
         }
         parentMap.set(dependent, currentAssembly);
         if (!childMap.has(currentAssembly)) {
           childMap.set(currentAssembly, []);
         }
         childMap.get(currentAssembly)?.push(dependent);
-      } else if (line.includes("bbox = Cuboid")) {
-        const components = line.split(",");
+      } else if (line.includes('bbox = Cuboid')) {
+        const components = line.split(',');
         const bboxParams = new Map<string, string>();
-        bboxParams.set("f_bb_x", components[0].split("(")[1].trim());
-        bboxParams.set("f_bb_y", components[1].trim());
-        bboxParams.set("f_bb_z", components[2].trim());
+        bboxParams.set('f_bb_x', components[0].split('(')[1].trim());
+        bboxParams.set('f_bb_y', components[1].trim());
+        bboxParams.set('f_bb_z', components[2].trim());
         if (!currentAssembly) {
-          throw new Error("Could not find parent for assembly.");
+          throw new Error('Could not find parent for assembly.');
         }
         bboxParamValues.set(currentAssembly, bboxParams);
       }
@@ -105,15 +105,21 @@ export default class Transpiler {
     // Do a topsort to update f_bb_x/y/z bbox parameters with their parents' values.
     const queue = ['Program_0'];
     while (queue.length > 0) {
-      const parent = queue.pop()!;
-      const parentBboxParams = bboxParamValues.get(parent)!;
+      const parent = queue.pop();
+      if (!parent) {
+        throw new Error('This should literally never happen.');
+      }
+      const parentBboxParams = bboxParamValues.get(parent);
+      if (!parentBboxParams) {
+        throw new Error('This should literally never happen.');
+      }
 
       // Go to the parent's children.
       for (const child of childMap.get(parent) ?? []) {
-        const childBboxParams = bboxParamValues.get(child)!;
-        childBboxParams.forEach((value, key) => {
-          if (key.includes("f_bb") && value.includes("f_bb")) {
-            childBboxParams.set(key, parentBboxParams.get(key)!);
+        const childBboxParams = bboxParamValues.get(child);
+        childBboxParams?.forEach((value, key) => {
+          if (key.includes('f_bb') && value.includes('f_bb')) {
+            childBboxParams.set(key, parentBboxParams.get(key) ?? '');
           }
         });
         queue.push(child);
@@ -124,25 +130,25 @@ export default class Transpiler {
     currentAssembly = undefined;
     for (const line of transpiled.split('\n')) {
       // Record the current assembly.
-      if (line.includes("Assembly")) {
-        currentAssembly = line.split(" ")[1];
+      if (line.includes('Assembly')) {
+        currentAssembly = line.split(' ')[1];
       }
 
       // Choose the parent assembly for the substitution.
       // For bounding box declarations, it's the parent bounding box.
       // For everything else, it's the current bounding box.
       let parentAssembly = currentAssembly;
-      if (line.includes("bbox = Cuboid")) {
+      if (line.includes('bbox = Cuboid')) {
         if (!currentAssembly) {
-          throw new Error("Could not find current assembly.");
+          throw new Error('Could not find current assembly.');
         }
         parentAssembly = parentMap.get(currentAssembly);
       }
 
       // Make the substitutions.
-      const bboxParams = parentAssembly ? bboxParamValues.get(parentAssembly) : bboxParamValues.get("Program_0");
+      const bboxParams = parentAssembly ? bboxParamValues.get(parentAssembly) : bboxParamValues.get('Program_0');
       if (!bboxParams) {
-        throw new Error("Could not find bbox param values.");
+        throw new Error('Could not find bbox param values.');
       }
       let postprocessedLine = line;
       bboxParams.forEach((newValue, oldValue) => {
@@ -150,22 +156,22 @@ export default class Transpiler {
       });
       postprocessedLines.push(postprocessedLine);
     }
-    return postprocessedLines.join("\n");
+    return postprocessedLines.join('\n');
   }
 
   private doBboxAttachPostprocessing(transpiled: string): string {
     const postprocessedLines: string[] = [];
     for (const line of transpiled.split('\n')) {
       // Flip the 7th attach parameter if the 2nd cuboid is a bounding box.
-      const components = line.split(",");
-      if (line.includes("attach") && components[1].includes("bbox")) {
+      const components = line.split(',');
+      if (line.includes('attach') && components[1].includes('bbox')) {
         components[6] = ` ${1 - parseFloat(components[6])}`;
-        postprocessedLines.push(components.join(","));
+        postprocessedLines.push(components.join(','));
       } else {
         postprocessedLines.push(line);
       }
     }
-    return postprocessedLines.join("\n");
+    return postprocessedLines.join('\n');
   }
 
   private tokenToKey(token: Token) {
